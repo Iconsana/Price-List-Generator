@@ -11,6 +11,11 @@ const PriceListGenerator = () => {
     terms: 'Payment terms are COD. T\'s & C\'s Apply.'
   });
   const [listTitle, setListTitle] = useState('LUNATIC LITHIUMS');
+  const [bulletPoints, setBulletPoints] = useState({
+    point1: 'Professional Grade',
+    point2: 'Quality Assured', 
+    point3: 'Fast Delivery'
+  });
   const [showPreview, setShowPreview] = useState(true);
   
   const printRef = useRef();
@@ -211,9 +216,9 @@ const PriceListGenerator = () => {
             <div className="bg-blue-600 px-8 py-4 rounded-xl transform lg:-skew-x-12 shadow-xl">
               <h2 className="text-2xl lg:text-3xl font-bold transform lg:skew-x-12">{listTitle}</h2>
               <div className="text-sm lg:text-base transform lg:skew-x-12 mt-2">
-                <div>• {categories[selectedCategory].name}</div>
-                <div>• Professional Grade</div>
-                <div>• Quality Assured</div>
+                <div>• {bulletPoints.point1}</div>
+                <div>• {bulletPoints.point2}</div>
+                <div>• {bulletPoints.point3}</div>
               </div>
             </div>
           </div>
@@ -295,6 +300,45 @@ const PriceListGenerator = () => {
                   className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
                   placeholder="e.g., LUNATIC LITHIUMS"
                 />
+              </div>
+            </div>
+
+            {/* Title Block Bullet Points */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Customize Title Block Bullet Points</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Bullet Point 1</label>
+                  <input
+                    type="text"
+                    value={bulletPoints.point1}
+                    onChange={(e) => setBulletPoints({...bulletPoints, point1: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Professional Grade"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Bullet Point 2</label>
+                  <input
+                    type="text"
+                    value={bulletPoints.point2}
+                    onChange={(e) => setBulletPoints({...bulletPoints, point2: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Quality Assured"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Bullet Point 3</label>
+                  <input
+                    type="text"
+                    value={bulletPoints.point3}
+                    onChange={(e) => setBulletPoints({...bulletPoints, point3: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Fast Delivery"
+                  />
+                </div>
               </div>
             </div>
 
@@ -385,12 +429,13 @@ const PriceListGenerator = () => {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Warranty (Years)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Warranty</label>
                         <select
                           value={product.warranty}
                           onChange={(e) => updateProduct(product.id, 'warranty', e.target.value)}
                           className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         >
+                          <option value="0">No Warranty</option>
                           <option value="1">1 Year</option>
                           <option value="2">2 Years</option>
                           <option value="3">3 Years</option>
