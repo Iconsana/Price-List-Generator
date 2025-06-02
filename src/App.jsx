@@ -95,9 +95,10 @@ const PriceListGenerator = () => {
   };
 
   const ProductCard = ({ product, isPreview = false }) => (
-    <div className={`bg-white rounded-lg border-2 border-gray-200 p-4 ${isPreview ? 'shadow-md' : ''}`}>
-      <div className="flex items-start gap-4">
-        <div className="w-24 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden border">
+    <div className={`bg-white rounded-lg border-2 border-gray-200 p-6 ${isPreview ? 'shadow-md' : ''} mb-4`}>
+      <div className="flex flex-col lg:flex-row items-start gap-6">
+        {/* Product Image */}
+        <div className="w-full lg:w-32 h-24 lg:h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
           {product.image && product.image !== '/api/placeholder/150/100' ? (
             <img 
               src={product.image} 
@@ -105,17 +106,18 @@ const PriceListGenerator = () => {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="text-gray-400 text-xs text-center">
-              <div>📷</div>
+            <div className="text-gray-400 text-sm text-center">
+              <div className="text-2xl mb-1">📷</div>
               <div>No Image</div>
             </div>
           )}
         </div>
         
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-lg text-gray-900 mb-2">{product.model || 'Product Model'}</h3>
+        {/* Product Details */}
+        <div className="flex-1 min-w-0 w-full lg:w-auto">
+          <h3 className="font-bold text-xl text-gray-900 mb-4 break-words">{product.model || 'Product Model'}</h3>
           
-          <div className="space-y-1 text-sm">
+          <div className="space-y-3 text-sm">
             {categories[selectedCategory].fields.map(field => {
               if (field === 'price' || field === 'warranty') return null;
               
@@ -123,25 +125,26 @@ const PriceListGenerator = () => {
               const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
               
               return value ? (
-                <div key={field} className="flex">
-                  <span className="text-gray-600">• {label}:</span>
-                  <span className="ml-1 font-medium">{value}</span>
+                <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                  <span className="text-gray-600 font-medium">• {label}:</span>
+                  <span className="font-medium text-gray-800 break-words">{value}</span>
                 </div>
               ) : null;
             })}
           </div>
         </div>
         
-        <div className="text-right">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-              {product.warranty} YEAR{product.warranty !== '1' ? 'S' : ''}
+        {/* Price and Warranty */}
+        <div className="w-full lg:w-auto text-center lg:text-right flex-shrink-0">
+          <div className="flex flex-col items-center lg:items-end gap-4">
+            <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold">
+              {product.warranty} YEAR{product.warranty !== '1' ? 'S' : ''} WARRANTY
             </div>
-          </div>
-          
-          <div className="bg-gray-800 text-white px-4 py-2 rounded-lg">
-            <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
-            <div className="text-xs text-red-400 font-bold">{product.incVat}</div>
+            
+            <div className="bg-gray-800 text-white px-6 py-4 rounded-lg min-w-[140px]">
+              <div className="text-2xl font-bold break-words">{product.price || 'R 0.00'}</div>
+              <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -151,20 +154,20 @@ const PriceListGenerator = () => {
   const PreviewSheet = () => (
     <div ref={printRef} className="bg-white min-h-screen print:min-h-0">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-8 print:p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">B | SHOCKED</h1>
-            <div className="text-sm space-y-1">
+      <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-6 sm:p-8 print:p-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+          <div className="w-full lg:w-auto">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4">B | SHOCKED</h1>
+            <div className="text-sm space-y-2">
               <div>• Prices are subject to change without prior notice.</div>
               <div>• {companyInfo.terms}</div>
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="bg-blue-600 px-6 py-3 rounded-lg transform -skew-x-12">
-              <h2 className="text-2xl font-bold transform skew-x-12">{listTitle}</h2>
-              <div className="text-sm transform skew-x-12">
+          <div className="w-full lg:w-auto text-left lg:text-right">
+            <div className="bg-blue-600 px-4 sm:px-6 py-3 rounded-lg transform -skew-x-12 inline-block">
+              <h2 className="text-xl sm:text-2xl font-bold transform skew-x-12 break-words">{listTitle}</h2>
+              <div className="text-sm transform skew-x-12 mt-2">
                 <div>• {categories[selectedCategory].name}</div>
                 <div>• Professional Grade</div>
                 <div>• Quality Assured</div>
@@ -175,8 +178,8 @@ const PriceListGenerator = () => {
       </div>
 
       {/* Products Grid */}
-      <div className="p-8 print:p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:gap-4">
+      <div className="p-4 sm:p-6 lg:p-8 print:p-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8 print:gap-4">
           {products.map(product => (
             <ProductCard key={product.id} product={product} isPreview={true} />
           ))}
@@ -184,26 +187,26 @@ const PriceListGenerator = () => {
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-900 text-white p-6 print:p-4 mt-8">
-        <div className="flex justify-between items-center">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+      <div className="bg-gray-900 text-white p-4 sm:p-6 print:p-4 mt-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="space-y-2 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
               <span>📞</span>
-              <span>{companyInfo.phone}</span>
+              <span className="break-words">{companyInfo.phone}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
               <span>✉️</span>
-              <span>{companyInfo.email}</span>
+              <span className="break-words">{companyInfo.email}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
               <span>🌐</span>
-              <span>{companyInfo.website}</span>
+              <span className="break-words">{companyInfo.website}</span>
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="text-sm">Scan to place orders online:</div>
-            <div className="w-16 h-16 bg-white rounded mt-2 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-sm mb-2">Scan to place orders online:</div>
+            <div className="w-16 h-16 bg-white rounded mt-2 flex items-center justify-center mx-auto">
               <div className="text-black text-xs">QR</div>
             </div>
           </div>
@@ -214,25 +217,25 @@ const PriceListGenerator = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg mb-6">
-          <div className="p-6 border-b">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">B SHOCKED Price List Generator</h1>
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+        <div className="bg-white rounded-lg shadow-lg mb-8">
+          <div className="p-4 sm:p-6 border-b">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">B SHOCKED Price List Generator</h1>
             <p className="text-gray-600">Create professional price sheets for solar installers</p>
           </div>
           
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* Configuration Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Category</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Product Category</label>
                 <select 
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
                     setProducts([]);
                   }}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 >
                   {Object.entries(categories).map(([key, category]) => (
                     <option key={key} value={key}>{category.name}</option>
@@ -241,31 +244,31 @@ const PriceListGenerator = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">List Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">List Title</label>
                 <input
                   type="text"
                   value={listTitle}
                   onChange={(e) => setListTitle(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                   placeholder="e.g., LUNATIC LITHIUMS"
                 />
               </div>
             </div>
 
             {/* Product Management */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h3 className="text-xl font-semibold">Products ({products.length})</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => setShowPreview(!showPreview)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-base font-medium"
                 >
                   <Eye size={16} />
                   {showPreview ? 'Hide Preview' : 'Show Preview'}
                 </button>
                 <button
                   onClick={addProduct}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-base font-medium"
                 >
                   <Plus size={16} />
                   Add Product
@@ -275,24 +278,24 @@ const PriceListGenerator = () => {
 
             {/* Product Forms */}
             {products.length > 0 && (
-              <div className="space-y-4 mb-6">
+              <div className="space-y-6 mb-8">
                 {products.map(product => (
-                  <div key={product.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-4">
-                      <h4 className="font-medium text-gray-900">Product {products.indexOf(product) + 1}</h4>
+                  <div key={product.id} className="border border-gray-200 rounded-lg p-4 sm:p-6">
+                    <div className="flex justify-between items-start mb-6">
+                      <h4 className="font-medium text-gray-900 text-lg">Product {products.indexOf(product) + 1}</h4>
                       <button
                         onClick={() => removeProduct(product.id)}
-                        className="text-red-600 hover:text-red-800 p-1"
+                        className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
-                        <div className="space-y-2">
-                          <div className="w-full h-20 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Product Image</label>
+                        <div className="space-y-3">
+                          <div className="w-full h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                             {product.image && product.image !== '/api/placeholder/150/100' ? (
                               <img 
                                 src={product.image} 
@@ -300,7 +303,7 @@ const PriceListGenerator = () => {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <span className="text-gray-400 text-xs">No image</span>
+                              <span className="text-gray-400 text-sm">No image</span>
                             )}
                           </div>
                           <input
@@ -310,38 +313,39 @@ const PriceListGenerator = () => {
                               const file = e.target.files[0];
                               if (file) handleImageUpload(product.id, file);
                             }}
-                            className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            className="w-full text-sm file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
                           />
                         </div>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Model/Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Model/Name</label>
                         <input
                           type="text"
                           value={product.model}
                           onChange={(e) => updateProduct(product.id, 'model', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                          placeholder="Enter model name"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Price</label>
                         <input
                           type="text"
                           value={product.price}
                           onChange={(e) => updateProduct(product.id, 'price', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                           placeholder="R 1,000.00"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Warranty (Years)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Warranty (Years)</label>
                         <select
                           value={product.warranty}
                           onChange={(e) => updateProduct(product.id, 'warranty', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                         >
                           <option value="1">1 Year</option>
                           <option value="2">2 Years</option>
@@ -352,7 +356,7 @@ const PriceListGenerator = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
                       {categories[selectedCategory].fields.map(field => {
                         if (field === 'price' || field === 'warranty') return null;
                         
@@ -360,12 +364,12 @@ const PriceListGenerator = () => {
                         
                         return (
                           <div key={field}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-3">{label}</label>
                             <input
                               type="text"
                               value={product.specs[field] || ''}
                               onChange={(e) => updateProductSpec(product.id, field, e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                               placeholder={`Enter ${label.toLowerCase()}`}
                             />
                           </div>
@@ -382,7 +386,7 @@ const PriceListGenerator = () => {
               <div className="flex justify-center">
                 <button
                   onClick={exportToPDF}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  className="flex items-center gap-3 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-base"
                 >
                   <Download size={20} />
                   Export Price List
@@ -395,7 +399,7 @@ const PriceListGenerator = () => {
         {/* Preview Section */}
         {showPreview && products.length > 0 && (
           <div className="bg-white rounded-lg shadow-lg">
-            <div className="p-4 border-b">
+            <div className="p-4 sm:p-6 border-b">
               <h3 className="text-xl font-semibold">Preview</h3>
             </div>
             <PreviewSheet />
