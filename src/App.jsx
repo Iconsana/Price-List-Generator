@@ -50,7 +50,7 @@ const PriceListGenerator = () => {
       image: '/api/placeholder/150/100',
       specs: {},
       price: '',
-      warranty: '1',
+      warranty: '0',
       incVat: 'INCL VAT',
       productUrl: ''
     };
