@@ -46,7 +46,8 @@ const PriceListGenerator = () => {
       specs: {},
       price: '',
       warranty: '1',
-      incVat: 'INCL VAT'
+      incVat: 'INCL VAT',
+      productUrl: ''
     };
     
     categories[selectedCategory].fields.forEach(field => {
@@ -89,85 +90,127 @@ const PriceListGenerator = () => {
   };
 
   const exportToPDF = () => {
-    if (printRef.current) {
+    // Show only the preview sheet for printing
+    const printContent = printRef.current;
+    if (printContent) {
+      // Hide everything else temporarily
+      document.body.style.visibility = 'hidden';
+      printContent.style.visibility = 'visible';
+      printContent.style.position = 'absolute';
+      printContent.style.left = '0';
+      printContent.style.top = '0';
+      printContent.style.width = '100%';
+      
+      // Trigger print dialog
       window.print();
+      
+      // Restore visibility after print
+      setTimeout(() => {
+        document.body.style.visibility = 'visible';
+        printContent.style.position = 'static';
+      }, 1000);
     }
   };
 
-  const ProductCard = ({ product, isPreview = false }) => (
-    <div className={`bg-white rounded-lg border-2 border-gray-200 p-6 ${isPreview ? 'shadow-md' : ''} mb-4`}>
-      <div className="flex flex-col lg:flex-row items-start gap-6">
-        {/* Product Image */}
-        <div className="w-full lg:w-32 h-24 lg:h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
-          {product.image && product.image !== '/api/placeholder/150/100' ? (
-            <img 
-              src={product.image} 
-              alt={product.model}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="text-gray-400 text-sm text-center">
-              <div className="text-2xl mb-1">📷</div>
-              <div>No Image</div>
-            </div>
-          )}
-        </div>
-        
-        {/* Product Details */}
-        <div className="flex-1 min-w-0 w-full lg:w-auto">
-          <h3 className="font-bold text-xl text-gray-900 mb-4 break-words">{product.model || 'Product Model'}</h3>
-          
-          <div className="space-y-3 text-sm">
-            {categories[selectedCategory].fields.map(field => {
-              if (field === 'price' || field === 'warranty') return null;
-              
-              const value = product.specs[field] || '';
-              const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-              
-              return value ? (
-                <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600 font-medium">• {label}:</span>
-                  <span className="font-medium text-gray-800 break-words">{value}</span>
-                </div>
-              ) : null;
-            })}
+  const ProductCard = ({ product, isPreview = false }) => {
+    const cardContent = (
+      <div className={`bg-white rounded-xl border-2 border-gray-200 p-6 print-break-inside-avoid ${isPreview ? 'shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer' : ''} ${product.productUrl && isPreview ? 'hover:border-blue-400' : ''}`}>
+        <div className="flex flex-col sm:flex-row items-start gap-6">
+          {/* Image Section - Now Square and Larger */}
+          <div className="w-full sm:w-40 h-40 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
+            {product.image && product.image !== '/api/placeholder/150/100' ? (
+              <img 
+                src={product.image} 
+                alt={product.model}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-gray-400 text-sm text-center">
+                <div className="text-3xl mb-2">📷</div>
+                <div>No Image</div>
+              </div>
+            )}
           </div>
-        </div>
-        
-        {/* Price and Warranty */}
-        <div className="w-full lg:w-auto text-center lg:text-right flex-shrink-0">
-          <div className="flex flex-col items-center lg:items-end gap-4">
-            <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold">
-              {product.warranty} YEAR{product.warranty !== '1' ? 'S' : ''} WARRANTY
-            </div>
+          
+          {/* Content Section */}
+          <div className="flex-1 min-w-0 w-full">
+            <h3 className="font-bold text-xl text-gray-900 mb-4">{product.model || 'Product Model'}</h3>
             
-            <div className="bg-gray-800 text-white px-6 py-4 rounded-lg min-w-[140px]">
-              <div className="text-2xl font-bold break-words">{product.price || 'R 0.00'}</div>
-              <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
+            <div className="space-y-2 text-sm">
+              {categories[selectedCategory].fields.map(field => {
+                if (field === 'price' || field === 'warranty') return null;
+                
+                const value = product.specs[field] || '';
+                const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
+                
+                return value ? (
+                  <div key={field} className="flex flex-wrap">
+                    <span className="text-gray-600 font-medium">• {label}:</span>
+                    <span className="ml-2 font-semibold text-gray-800">{value}</span>
+                  </div>
+                ) : null;
+              })}
+              
+              {/* Show product URL if available */}
+              {product.productUrl && isPreview && (
+                <div className="flex flex-wrap mt-3">
+                  <span className="text-blue-600 font-medium text-xs">🔗 Click anywhere to view details</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Price Section */}
+          <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
+            <div className="flex flex-col items-center sm:items-end gap-3">
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md">
+                {product.warranty} YEAR{product.warranty !== '1' ? 'S' : ''}
+              </div>
+              
+              <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
+                <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
+                <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+
+    // If it's a preview and has a URL, make it clickable
+    if (isPreview && product.productUrl) {
+      return (
+        <a 
+          href={product.productUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="block transform hover:scale-[1.02] transition-transform duration-200"
+        >
+          {cardContent}
+        </a>
+      );
+    }
+
+    return cardContent;
+  };
 
   const PreviewSheet = () => (
     <div ref={printRef} className="bg-white min-h-screen print:min-h-0">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-6 sm:p-8 print:p-4">
+      <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-8 print:p-6">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
-          <div className="w-full lg:w-auto">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4">B | SHOCKED</h1>
-            <div className="text-sm space-y-2">
+          <div className="flex-1">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4">B | SHOCKED</h1>
+            <div className="text-sm lg:text-base space-y-2">
               <div>• Prices are subject to change without prior notice.</div>
               <div>• {companyInfo.terms}</div>
             </div>
           </div>
           
-          <div className="w-full lg:w-auto text-left lg:text-right">
-            <div className="bg-blue-600 px-4 sm:px-6 py-3 rounded-lg transform -skew-x-12 inline-block">
-              <h2 className="text-xl sm:text-2xl font-bold transform skew-x-12 break-words">{listTitle}</h2>
-              <div className="text-sm transform skew-x-12 mt-2">
+          <div className="w-full lg:w-auto text-center lg:text-right">
+            <div className="bg-blue-600 px-8 py-4 rounded-xl transform lg:-skew-x-12 shadow-xl">
+              <h2 className="text-2xl lg:text-3xl font-bold transform lg:skew-x-12">{listTitle}</h2>
+              <div className="text-sm lg:text-base transform lg:skew-x-12 mt-2">
                 <div>• {categories[selectedCategory].name}</div>
                 <div>• Professional Grade</div>
                 <div>• Quality Assured</div>
@@ -178,8 +221,8 @@ const PriceListGenerator = () => {
       </div>
 
       {/* Products Grid */}
-      <div className="p-4 sm:p-6 lg:p-8 print:p-4">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8 print:gap-4">
+      <div className="p-6 lg:p-10 print:p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:gap-6">
           {products.map(product => (
             <ProductCard key={product.id} product={product} isPreview={true} />
           ))}
@@ -187,27 +230,27 @@ const PriceListGenerator = () => {
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-900 text-white p-4 sm:p-6 print:p-4 mt-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="space-y-2 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span>📞</span>
-              <span className="break-words">{companyInfo.phone}</span>
+      <div className="bg-gray-900 text-white p-6 lg:p-8 print:p-6 mt-8">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
+          <div className="space-y-2 text-center lg:text-left">
+            <div className="flex items-center justify-center lg:justify-start gap-3">
+              <span className="text-xl">📞</span>
+              <span className="text-lg">{companyInfo.phone}</span>
             </div>
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span>✉️</span>
-              <span className="break-words">{companyInfo.email}</span>
+            <div className="flex items-center justify-center lg:justify-start gap-3">
+              <span className="text-xl">✉️</span>
+              <span className="text-lg">{companyInfo.email}</span>
             </div>
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span>🌐</span>
-              <span className="break-words">{companyInfo.website}</span>
+            <div className="flex items-center justify-center lg:justify-start gap-3">
+              <span className="text-xl">🌐</span>
+              <span className="text-lg">{companyInfo.website}</span>
             </div>
           </div>
           
           <div className="text-center">
-            <div className="text-sm mb-2">Scan to place orders online:</div>
-            <div className="w-16 h-16 bg-white rounded mt-2 flex items-center justify-center mx-auto">
-              <div className="text-black text-xs">QR</div>
+            <div className="text-sm mb-3">Scan to place orders online:</div>
+            <div className="w-20 h-20 bg-white rounded-lg mx-auto flex items-center justify-center shadow-lg">
+              <div className="text-black font-bold">QR</div>
             </div>
           </div>
         </div>
@@ -217,25 +260,25 @@ const PriceListGenerator = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
-        <div className="bg-white rounded-lg shadow-lg mb-8">
-          <div className="p-4 sm:p-6 border-b">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">B SHOCKED Price List Generator</h1>
-            <p className="text-gray-600">Create professional price sheets for solar installers</p>
+      <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
+        <div className="bg-white rounded-xl shadow-xl mb-8">
+          <div className="p-6 lg:p-8 border-b border-gray-200">
+            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">B SHOCKED Price List Generator</h1>
+            <p className="text-gray-600 text-lg">Create professional price sheets for solar installers</p>
           </div>
           
-          <div className="p-4 sm:p-6">
+          <div className="p-6 lg:p-8">
             {/* Configuration Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Product Category</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Product Category</label>
                 <select 
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
                     setProducts([]);
                   }}
-                  className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                  className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
                 >
                   {Object.entries(categories).map(([key, category]) => (
                     <option key={key} value={key}>{category.name}</option>
@@ -244,33 +287,33 @@ const PriceListGenerator = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">List Title</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">List Title</label>
                 <input
                   type="text"
                   value={listTitle}
                   onChange={(e) => setListTitle(e.target.value)}
-                  className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                  className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
                   placeholder="e.g., LUNATIC LITHIUMS"
                 />
               </div>
             </div>
 
             {/* Product Management */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h3 className="text-xl font-semibold">Products ({products.length})</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <h3 className="text-2xl font-bold text-gray-900">Products ({products.length})</h3>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => setShowPreview(!showPreview)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-base font-medium"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-lg"
                 >
-                  <Eye size={16} />
+                  <Eye size={20} />
                   {showPreview ? 'Hide Preview' : 'Show Preview'}
                 </button>
                 <button
                   onClick={addProduct}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-base font-medium"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
                 >
-                  <Plus size={16} />
+                  <Plus size={20} />
                   Add Product
                 </button>
               </div>
@@ -278,24 +321,25 @@ const PriceListGenerator = () => {
 
             {/* Product Forms */}
             {products.length > 0 && (
-              <div className="space-y-6 mb-8">
+              <div className="space-y-8 mb-8">
                 {products.map(product => (
-                  <div key={product.id} className="border border-gray-200 rounded-lg p-4 sm:p-6">
+                  <div key={product.id} className="border-2 border-gray-200 rounded-xl p-6 lg:p-8 bg-gray-50">
                     <div className="flex justify-between items-start mb-6">
-                      <h4 className="font-medium text-gray-900 text-lg">Product {products.indexOf(product) + 1}</h4>
+                      <h4 className="text-xl font-bold text-gray-900">Product {products.indexOf(product) + 1}</h4>
                       <button
                         onClick={() => removeProduct(product.id)}
-                        className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      <div className="sm:col-span-2 lg:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Product Image</label>
+                    {/* Basic Info Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Product Image</label>
                         <div className="space-y-3">
-                          <div className="w-full h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                          <div className="w-full h-32 bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden hover:border-blue-400 transition-colors">
                             {product.image && product.image !== '/api/placeholder/150/100' ? (
                               <img 
                                 src={product.image} 
@@ -313,39 +357,39 @@ const PriceListGenerator = () => {
                               const file = e.target.files[0];
                               if (file) handleImageUpload(product.id, file);
                             }}
-                            className="w-full text-sm file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+                            className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors"
                           />
                         </div>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Model/Name</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Model/Name</label>
                         <input
                           type="text"
                           value={product.model}
                           onChange={(e) => updateProduct(product.id, 'model', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                           placeholder="Enter model name"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Price</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Price</label>
                         <input
                           type="text"
                           value={product.price}
                           onChange={(e) => updateProduct(product.id, 'price', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                           placeholder="R 1,000.00"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Warranty (Years)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Warranty (Years)</label>
                         <select
                           value={product.warranty}
                           onChange={(e) => updateProduct(product.id, 'warranty', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         >
                           <option value="1">1 Year</option>
                           <option value="2">2 Years</option>
@@ -354,9 +398,21 @@ const PriceListGenerator = () => {
                           <option value="10">10 Years</option>
                         </select>
                       </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Product URL</label>
+                        <input
+                          type="url"
+                          value={product.productUrl}
+                          onChange={(e) => updateProduct(product.id, 'productUrl', e.target.value)}
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="https://example.com/product"
+                        />
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+                    {/* Specifications Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {categories[selectedCategory].fields.map(field => {
                         if (field === 'price' || field === 'warranty') return null;
                         
@@ -364,12 +420,12 @@ const PriceListGenerator = () => {
                         
                         return (
                           <div key={field}>
-                            <label className="block text-sm font-medium text-gray-700 mb-3">{label}</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">{label}</label>
                             <input
                               type="text"
                               value={product.specs[field] || ''}
                               onChange={(e) => updateProductSpec(product.id, field, e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                               placeholder={`Enter ${label.toLowerCase()}`}
                             />
                           </div>
@@ -383,13 +439,22 @@ const PriceListGenerator = () => {
 
             {/* Export Options */}
             {products.length > 0 && (
-              <div className="flex justify-center">
+              <div className="text-center mt-8">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-blue-900 mb-2">Export Instructions</h4>
+                  <p className="text-blue-800 text-sm">
+                    • Click "Export Price List" to open print dialog<br/>
+                    • Choose "Save as PDF" or your preferred printer<br/>
+                    • Products with URLs will be clickable when viewed digitally<br/>
+                    • For best results, use A4 paper size
+                  </p>
+                </div>
                 <button
                   onClick={exportToPDF}
-                  className="flex items-center gap-3 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-base"
+                  className="flex items-center gap-3 px-8 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl mx-auto"
                 >
-                  <Download size={20} />
-                  Export Price List
+                  <Download size={24} />
+                  Export Price List to PDF
                 </button>
               </div>
             )}
@@ -398,9 +463,9 @@ const PriceListGenerator = () => {
 
         {/* Preview Section */}
         {showPreview && products.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg">
-            <div className="p-4 sm:p-6 border-b">
-              <h3 className="text-xl font-semibold">Preview</h3>
+          <div className="bg-white rounded-xl shadow-xl">
+            <div className="p-6 lg:p-8 border-b border-gray-200">
+              <h3 className="text-2xl font-bold text-gray-900">Preview</h3>
             </div>
             <PreviewSheet />
           </div>
@@ -409,17 +474,46 @@ const PriceListGenerator = () => {
       
       <style jsx>{`
         @media print {
-          body * {
-            visibility: hidden;
+          @page {
+            margin: 0.5in;
+            size: A4;
           }
-          [ref="printRef"] * {
-            visibility: visible;
+          
+          body {
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
           }
-          [ref="printRef"] {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+          
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Ensure colors and gradients print */
+          .bg-gradient-to-r,
+          .bg-blue-600,
+          .bg-gray-900,
+          .bg-gray-800 {
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+          }
+          
+          /* Better spacing for print */
+          .print\\:gap-4 {
+            gap: 1rem;
+          }
+          
+          .print\\:p-4 {
+            padding: 1rem;
+          }
+          
+          .print\\:p-6 {
+            padding: 1.5rem;
+          }
+          
+          /* Ensure proper page breaks */
+          .print-break-inside-avoid {
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
         }
       `}</style>
