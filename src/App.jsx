@@ -142,7 +142,7 @@ const PriceListGenerator = () => {
             
             <div className="space-y-2 text-sm">
               {categories[selectedCategory].fields.map(field => {
-                if (field === 'price' || field === 'warranty') return null;
+                if (field === 'price') return null;
                 
                 const value = product.specs[field] || '';
                 const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
@@ -164,13 +164,9 @@ const PriceListGenerator = () => {
             </div>
           </div>
           
-          {/* Price Section */}
+          {/* Price Section - Warranty/Years section removed */}
           <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
             <div className="flex flex-col items-center sm:items-end gap-3">
-              <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md">
-                {product.warranty} YEAR{product.warranty !== '1' ? 'S' : ''}
-              </div>
-              
               <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
                 <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
                 <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
