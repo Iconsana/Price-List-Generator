@@ -24,22 +24,22 @@ const PriceListGenerator = () => {
     batteries: {
       name: 'Batteries',
       color: '#00a8cc',
-      fields: ['model', 'capacity', 'voltage', 'dimensions', 'warranty', 'price']
+      fields: ['model', 'capacity', 'voltage', 'dimensions', 'price']
     },
     solar: {
       name: 'Solar Panels',
       color: '#ff6b35',
-      fields: ['model', 'wattage', 'efficiency', 'dimensions', 'warranty', 'pricePerWatt', 'unitPrice']
+      fields: ['model', 'wattage', 'efficiency', 'dimensions', 'pricePerWatt', 'unitPrice']
     },
     inverters: {
       name: 'Inverters',
       color: '#4ecdc4',
-      fields: ['model', 'power', 'inputVoltage', 'outputVoltage', 'efficiency', 'warranty', 'price']
+      fields: ['model', 'power', 'inputVoltage', 'outputVoltage', 'efficiency', 'price']
     },
     mounting: {
       name: 'Mounting Systems',
       color: '#45b7d1',
-      fields: ['model', 'material', 'suitableFor', 'dimensions', 'warranty', 'price']
+      fields: ['model', 'material', 'suitableFor', 'dimensions', 'price']
     }
   };
 
@@ -50,13 +50,12 @@ const PriceListGenerator = () => {
       image: '/api/placeholder/150/100',
       specs: {},
       price: '',
-      warranty: '0',
       incVat: 'INCL VAT',
       productUrl: ''
     };
     
     categories[selectedCategory].fields.forEach(field => {
-      if (field !== 'price' && field !== 'warranty') {
+      if (field !== 'price') {
         newProduct.specs[field] = '';
       }
     });
@@ -379,7 +378,7 @@ const PriceListGenerator = () => {
                     </div>
                     
                     {/* Basic Info Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">Product Image</label>
                         <div className="space-y-3">
@@ -429,22 +428,6 @@ const PriceListGenerator = () => {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Warranty</label>
-                        <select
-                          value={product.warranty}
-                          onChange={(e) => updateProduct(product.id, 'warranty', e.target.value)}
-                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        >
-                          <option value="0">No Warranty</option>
-                          <option value="1">1 Year</option>
-                          <option value="2">2 Years</option>
-                          <option value="3">3 Years</option>
-                          <option value="5">5 Years</option>
-                          <option value="10">10 Years</option>
-                        </select>
-                      </div>
-                      
-                      <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">Product URL</label>
                         <input
                           type="url"
@@ -459,7 +442,7 @@ const PriceListGenerator = () => {
                     {/* Specifications Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {categories[selectedCategory].fields.map(field => {
-                        if (field === 'price' || field === 'warranty') return null;
+                        if (field === 'price') return null;
                         
                         const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
                         
