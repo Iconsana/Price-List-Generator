@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { Download, Plus, Trash2, Edit3, Eye } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Download, Plus, Trash2, Upload, Save, FileText, Zap, Eye, EyeOff, Copy, Grid, List, Search, Filter, ChevronDown, ChevronRight } from 'lucide-react';
+import Papa from 'papaparse';
 
 const PriceListGenerator = () => {
   const [selectedCategory, setSelectedCategory] = useState('batteries');
@@ -16,9 +17,15 @@ const PriceListGenerator = () => {
     point2: 'Quality Assured', 
     point3: 'Fast Delivery'
   });
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
+  const [savedTemplates, setSavedTemplates] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState('');
   
   const printRef = useRef();
+  const fileInputRef = useRef();
 
   const categories = {
     batteries: {
@@ -41,6 +48,213 @@ const PriceListGenerator = () => {
       color: '#45b7d1',
       fields: ['model', 'material', 'suitableFor', 'dimensions', 'price']
     }
+  };
+
+  // Load saved data on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('priceListTemplates');
+    if (saved) {
+      setSavedTemplates(JSON.parse(saved));
+    }
+    
+    // Load autosave if exists
+    const autosave = localStorage.getItem('priceListAutosave');
+    if (autosave) {
+      const data = JSON.parse(autosave);
+      setProducts(data.products || []);
+      setSelectedCategory(data.category || 'batteries');
+      setListTitle(data.listTitle || 'LUNATIC LITHIUMS');
+      setBulletPoints(data.bulletPoints || bulletPoints);
+    }
+  }, []);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const saveTimer = setTimeout(() => {
+      localStorage.setItem('priceListAutosave', JSON.stringify({
+        products,
+        category: selectedCategory,
+        listTitle,
+        bulletPoints,
+        timestamp: new Date().toISOString()
+      }));
+    }, 1000);
+
+    return () => clearTimeout(saveTimer);
+  }, [products, selectedCategory, listTitle, bulletPoints]);
+
+  // Parse uploaded files (PDF text extraction would require additional library)
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileType = file.name.split('.').pop().toLowerCase();
+
+    if (fileType === 'csv') {
+      Papa.parse(file, {
+        complete: (results) => {
+          const data = results.data;
+          if (data.length > 0) {
+            // Auto-detect headers and map to products
+            const headers = data[0];
+            const importedProducts = data.slice(1).map((row, index) => {
+              const product = {
+                id: Date.now() + index,
+                model: '',
+                image: '/api/placeholder/150/100',
+                specs: {},
+                price: '',
+                incVat: 'INCL VAT',
+                productUrl: ''
+              };
+
+              // Smart mapping based on header names
+              headers.forEach((header, idx) => {
+                const value = row[idx];
+                const headerLower = header.toLowerCase();
+                
+                if (headerLower.includes('model') || headerLower.includes('name')) {
+                  product.model = value;
+                } else if (headerLower.includes('price')) {
+                  product.price = value;
+                } else if (headerLower.includes('url') || headerLower.includes('link')) {
+                  product.productUrl = value;
+                } else {
+                  // Map to specs
+                  product.specs[header] = value;
+                }
+              });
+
+              return product;
+            });
+
+            setProducts([...products, ...importedProducts]);
+            alert(`Successfully imported ${importedProducts.length} products!`);
+          }
+        },
+        header: false
+      });
+    } else if (fileType === 'json') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data)) {
+            const importedProducts = data.map((item, index) => ({
+              id: Date.now() + index,
+              model: item.model || item.name || '',
+              image: item.image || '/api/placeholder/150/100',
+              specs: item.specs || {},
+              price: item.price || '',
+              incVat: item.incVat || 'INCL VAT',
+              productUrl: item.productUrl || item.url || ''
+            }));
+            setProducts([...products, ...importedProducts]);
+            alert(`Successfully imported ${importedProducts.length} products!`);
+          }
+        } catch (error) {
+          alert('Error parsing JSON file');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      alert('Please upload a CSV or JSON file. PDF parsing coming soon!');
+    }
+  };
+
+  // Bulk edit functionality
+  const handleBulkEdit = () => {
+    try {
+      const rows = bulkEditData.trim().split('\n');
+      const importedProducts = rows.map((row, index) => {
+        const cols = row.split('\t'); // Tab-separated values
+        return {
+          id: Date.now() + index,
+          model: cols[0] || '',
+          price: cols[1] || '',
+          specs: {
+            capacity: cols[2] || '',
+            voltage: cols[3] || '',
+            dimensions: cols[4] || ''
+          },
+          image: '/api/placeholder/150/100',
+          incVat: 'INCL VAT',
+          productUrl: cols[5] || ''
+        };
+      });
+      
+      setProducts([...products, ...importedProducts]);
+      setBulkEditData('');
+      setShowBulkEdit(false);
+      alert(`Successfully imported ${importedProducts.length} products!`);
+    } catch (error) {
+      alert('Error parsing bulk data. Please use tab-separated values.');
+    }
+  };
+
+  // Save template functionality
+  const saveTemplate = () => {
+    const templateName = prompt('Enter template name:');
+    if (templateName) {
+      const template = {
+        id: Date.now(),
+        name: templateName,
+        category: selectedCategory,
+        products,
+        listTitle,
+        bulletPoints,
+        savedAt: new Date().toISOString()
+      };
+      
+      const updated = [...savedTemplates, template];
+      setSavedTemplates(updated);
+      localStorage.setItem('priceListTemplates', JSON.stringify(updated));
+      alert('Template saved successfully!');
+    }
+  };
+
+  // Load template
+  const loadTemplate = (template) => {
+    setSelectedCategory(template.category);
+    setProducts(template.products);
+    setListTitle(template.listTitle);
+    setBulletPoints(template.bulletPoints);
+    alert(`Loaded template: ${template.name}`);
+  };
+
+  // Export to various formats
+  const exportData = (format) => {
+    let data = '';
+    let filename = `price-list-${Date.now()}`;
+    let mimeType = '';
+
+    if (format === 'csv') {
+      // Create CSV
+      const headers = ['Model', 'Price', ...Object.keys(products[0]?.specs || {})];
+      data = headers.join(',') + '\n';
+      products.forEach(product => {
+        const row = [
+          product.model,
+          product.price,
+          ...Object.values(product.specs)
+        ];
+        data += row.map(cell => `"${cell}"`).join(',') + '\n';
+      });
+      filename += '.csv';
+      mimeType = 'text/csv';
+    } else if (format === 'json') {
+      data = JSON.stringify(products, null, 2);
+      filename += '.json';
+      mimeType = 'application/json';
+    }
+
+    const blob = new Blob([data], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const addProduct = () => {
@@ -93,11 +307,21 @@ const PriceListGenerator = () => {
     setProducts(products.filter(product => product.id !== id));
   };
 
+  const duplicateProduct = (id) => {
+    const productToDuplicate = products.find(p => p.id === id);
+    if (productToDuplicate) {
+      const newProduct = {
+        ...productToDuplicate,
+        id: Date.now(),
+        model: productToDuplicate.model + ' (Copy)'
+      };
+      setProducts([...products, newProduct]);
+    }
+  };
+
   const exportToPDF = () => {
-    // Show only the preview sheet for printing
     const printContent = printRef.current;
     if (printContent) {
-      // Hide everything else temporarily
       document.body.style.visibility = 'hidden';
       printContent.style.visibility = 'visible';
       printContent.style.position = 'absolute';
@@ -105,10 +329,8 @@ const PriceListGenerator = () => {
       printContent.style.top = '0';
       printContent.style.width = '100%';
       
-      // Trigger print dialog
       window.print();
       
-      // Restore visibility after print
       setTimeout(() => {
         document.body.style.visibility = 'visible';
         printContent.style.position = 'static';
@@ -116,11 +338,18 @@ const PriceListGenerator = () => {
     }
   };
 
+  // Filter products based on search
+  const filteredProducts = products.filter(product => 
+    product.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    Object.values(product.specs).some(spec => 
+      spec.toString().toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
   const ProductCard = ({ product, isPreview = false }) => {
     const cardContent = (
       <div className={`bg-white rounded-xl border-2 border-gray-200 p-6 print-break-inside-avoid ${isPreview ? 'shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer' : ''} ${product.productUrl && isPreview ? 'hover:border-blue-400' : ''}`}>
         <div className="flex flex-col sm:flex-row items-start gap-6">
-          {/* Image Section - Now Square and Larger */}
           <div className="w-full sm:w-40 h-40 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
             {product.image && product.image !== '/api/placeholder/150/100' ? (
               <img 
@@ -136,7 +365,6 @@ const PriceListGenerator = () => {
             )}
           </div>
           
-          {/* Content Section */}
           <div className="flex-1 min-w-0 w-full">
             <h3 className="font-bold text-xl text-gray-900 mb-4">{product.model || 'Product Model'}</h3>
             
@@ -155,7 +383,6 @@ const PriceListGenerator = () => {
                 ) : null;
               })}
               
-              {/* Show product URL if available */}
               {product.productUrl && isPreview && (
                 <div className="flex flex-wrap mt-3">
                   <span className="text-blue-600 font-medium text-xs">🔗 Click anywhere to view details</span>
@@ -164,7 +391,6 @@ const PriceListGenerator = () => {
             </div>
           </div>
           
-          {/* Price Section - Warranty/Years section removed */}
           <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
             <div className="flex flex-col items-center sm:items-end gap-3">
               <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
@@ -177,7 +403,6 @@ const PriceListGenerator = () => {
       </div>
     );
 
-    // If it's a preview and has a URL, make it clickable
     if (isPreview && product.productUrl) {
       return (
         <a 
@@ -196,7 +421,6 @@ const PriceListGenerator = () => {
 
   const PreviewSheet = () => (
     <div ref={printRef} className="bg-white min-h-screen print:min-h-0">
-      {/* Header */}
       <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-8 print:p-6">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div className="flex-1">
@@ -220,16 +444,14 @@ const PriceListGenerator = () => {
         </div>
       </div>
 
-      {/* Products Grid */}
       <div className="p-6 lg:p-10 print:p-6">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:gap-6">
-          {products.map(product => (
+          {filteredProducts.map(product => (
             <ProductCard key={product.id} product={product} isPreview={true} />
           ))}
         </div>
       </div>
 
-      {/* Footer */}
       <div className="bg-gray-900 text-white p-6 lg:p-8 print:p-6 mt-8">
         <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
           <div className="space-y-2 text-center lg:text-left">
@@ -264,10 +486,146 @@ const PriceListGenerator = () => {
         <div className="bg-white rounded-xl shadow-xl mb-8">
           <div className="p-6 lg:p-8 border-b border-gray-200">
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">B SHOCKED Price List Generator</h1>
-            <p className="text-gray-600 text-lg">Create professional price sheets for solar installers</p>
+            <p className="text-gray-600 text-lg">Create professional price sheets - Now on Steroids! 💪</p>
           </div>
           
           <div className="p-6 lg:p-8">
+            {/* Quick Actions Bar */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+                >
+                  <Upload size={20} />
+                  Import Data
+                </button>
+                
+                <button
+                  onClick={() => setShowBulkEdit(!showBulkEdit)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+                >
+                  <Grid size={20} />
+                  Bulk Edit
+                </button>
+                
+                <button
+                  onClick={saveTemplate}
+                  disabled={products.length === 0}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium disabled:opacity-50"
+                >
+                  <Save size={20} />
+                  Save Template
+                </button>
+                
+                <div className="relative group">
+                  <button
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition-colors font-medium w-full"
+                  >
+                    <Download size={20} />
+                    Export As
+                    <ChevronDown size={16} />
+                  </button>
+                  <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 w-full">
+                    <button
+                      onClick={() => exportData('csv')}
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg"
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => exportData('json')}
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-50"
+                    >
+                      Export as JSON
+                    </button>
+                    <button
+                      onClick={exportToPDF}
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-50 rounded-b-lg"
+                    >
+                      Export as PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.json,.pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            {/* Saved Templates */}
+            {savedTemplates.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Saved Templates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {savedTemplates.map(template => (
+                    <div key={template.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-semibold text-gray-900">{template.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {template.products.length} products • {new Date(template.savedAt).toLocaleDateString()}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => loadTemplate(template)}
+                          className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSavedTemplates(savedTemplates.filter(t => t.id !== template.id));
+                            localStorage.setItem('priceListTemplates', JSON.stringify(savedTemplates.filter(t => t.id !== template.id)));
+                          }}
+                          className="text-sm px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bulk Edit Section */}
+            {showBulkEdit && (
+              <div className="mb-8 bg-yellow-50 rounded-xl p-6 border-2 border-yellow-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Bulk Import - Paste Your Data</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Paste tab-separated data from Excel/Google Sheets. Format: Model [TAB] Price [TAB] Capacity [TAB] Voltage [TAB] Dimensions [TAB] URL
+                </p>
+                <textarea
+                  value={bulkEditData}
+                  onChange={(e) => setBulkEditData(e.target.value)}
+                  className="w-full h-40 p-4 border-2 border-gray-300 rounded-lg font-mono text-sm"
+                  placeholder="VOLT-5000	R15,999	5.12kWh	48V	520x300x180mm	https://example.com/volt5000"
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={handleBulkEdit}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Import Data
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkEdit(false);
+                      setBulkEditData('');
+                    }}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Configuration Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <div>
@@ -338,128 +696,224 @@ const PriceListGenerator = () => {
             </div>
 
             {/* Product Management */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <h3 className="text-2xl font-bold text-gray-900">Products ({products.length})</h3>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-lg"
-                >
-                  <Eye size={20} />
-                  {showPreview ? 'Hide Preview' : 'Show Preview'}
-                </button>
-                <button
-                  onClick={addProduct}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
-                >
-                  <Plus size={20} />
-                  Add Product
-                </button>
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Products ({filteredProducts.length} of {products.length})</h3>
+                <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search products..."
+                      className="pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  
+                  {/* View Mode Toggle */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-3 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <Grid size={20} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-3 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <List size={20} />
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                  >
+                    {showPreview ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPreview ? 'Hide Preview' : 'Show Preview'}
+                  </button>
+                  
+                  <button
+                    onClick={addProduct}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    <Plus size={20} />
+                    Add Product
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Product Forms */}
-            {products.length > 0 && (
-              <div className="space-y-8 mb-8">
-                {products.map(product => (
-                  <div key={product.id} className="border-2 border-gray-200 rounded-xl p-6 lg:p-8 bg-gray-50">
-                    <div className="flex justify-between items-start mb-6">
-                      <h4 className="text-xl font-bold text-gray-900">Product {products.indexOf(product) + 1}</h4>
-                      <button
-                        onClick={() => removeProduct(product.id)}
-                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-                    
-                    {/* Basic Info Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Product Image</label>
-                        <div className="space-y-3">
-                          <div className="w-full h-32 bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden hover:border-blue-400 transition-colors">
-                            {product.image && product.image !== '/api/placeholder/150/100' ? (
-                              <img 
-                                src={product.image} 
-                                alt="Product preview"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-gray-400 text-sm">No image</span>
-                            )}
-                          </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) handleImageUpload(product.id, file);
-                            }}
-                            className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors"
-                          />
+              {/* Product List/Grid */}
+              {filteredProducts.length > 0 && (
+                <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : 'space-y-4'}>
+                  {filteredProducts.map((product, index) => (
+                    <div key={product.id} className="border-2 border-gray-200 rounded-xl p-6 bg-gray-50">
+                      <div className="flex justify-between items-start mb-4">
+                        <h4 className="text-xl font-bold text-gray-900">
+                          {product.model || `Product ${index + 1}`}
+                        </h4>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => duplicateProduct(product.id)}
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="Duplicate"
+                          >
+                            <Copy size={18} />
+                          </button>
+                          <button
+                            onClick={() => removeProduct(product.id)}
+                            className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Model/Name</label>
-                        <input
-                          type="text"
-                          value={product.model}
-                          onChange={(e) => updateProduct(product.id, 'model', e.target.value)}
-                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                          placeholder="Enter model name"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Price</label>
-                        <input
-                          type="text"
-                          value={product.price}
-                          onChange={(e) => updateProduct(product.id, 'price', e.target.value)}
-                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                          placeholder="R 1,000.00"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Product URL</label>
-                        <input
-                          type="url"
-                          value={product.productUrl}
-                          onChange={(e) => updateProduct(product.id, 'productUrl', e.target.value)}
-                          className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                          placeholder="https://example.com/product"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Specifications Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {categories[selectedCategory].fields.map(field => {
-                        if (field === 'price') return null;
-                        
-                        const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-                        
-                        return (
-                          <div key={field}>
-                            <label className="block text-sm font-semibold text-gray-700 mb-3">{label}</label>
+                      {viewMode === 'list' ? (
+                        // Compact List View
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <input
+                            type="text"
+                            value={product.model}
+                            onChange={(e) => updateProduct(product.id, 'model', e.target.value)}
+                            className="p-2 border-2 border-gray-300 rounded"
+                            placeholder="Model"
+                          />
+                          <input
+                            type="text"
+                            value={product.price}
+                            onChange={(e) => updateProduct(product.id, 'price', e.target.value)}
+                            className="p-2 border-2 border-gray-300 rounded"
+                            placeholder="Price"
+                          />
+                          {Object.keys(product.specs).slice(0, 2).map(spec => (
                             <input
+                              key={spec}
                               type="text"
-                              value={product.specs[field] || ''}
-                              onChange={(e) => updateProductSpec(product.id, field, e.target.value)}
-                              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                              placeholder={`Enter ${label.toLowerCase()}`}
+                              value={product.specs[spec]}
+                              onChange={(e) => updateProductSpec(product.id, spec, e.target.value)}
+                              className="p-2 border-2 border-gray-300 rounded"
+                              placeholder={spec}
                             />
+                          ))}
+                        </div>
+                      ) : (
+                        // Full Grid View
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+                              <div className="space-y-2">
+                                <div className="w-full h-24 bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden hover:border-blue-400 transition-colors">
+                                  {product.image && product.image !== '/api/placeholder/150/100' ? (
+                                    <img 
+                                      src={product.image} 
+                                      alt="Product preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">No image</span>
+                                  )}
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) handleImageUpload(product.id, file);
+                                  }}
+                                  className="w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Model/Name</label>
+                              <input
+                                type="text"
+                                value={product.model}
+                                onChange={(e) => updateProduct(product.id, 'model', e.target.value)}
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter model name"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Price</label>
+                              <input
+                                type="text"
+                                value={product.price}
+                                onChange={(e) => updateProduct(product.id, 'price', e.target.value)}
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="R 1,000.00"
+                              />
+                            </div>
                           </div>
-                        );
-                      })}
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="sm:col-span-2">
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Product URL</label>
+                              <input
+                                type="url"
+                                value={product.productUrl}
+                                onChange={(e) => updateProduct(product.id, 'productUrl', e.target.value)}
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="https://example.com/product"
+                              />
+                            </div>
+                            
+                            {categories[selectedCategory].fields.map(field => {
+                              if (field === 'price') return null;
+                              
+                              const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
+                              
+                              return (
+                                <div key={field}>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+                                  <input
+                                    type="text"
+                                    value={product.specs[field] || ''}
+                                    onChange={(e) => updateProductSpec(product.id, field, e.target.value)}
+                                    className="w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder={`Enter ${label.toLowerCase()}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
+                  ))}
+                </div>
+              )}
+
+              {products.length === 0 && (
+                <div className="text-center py-16 bg-gray-50 rounded-xl">
+                  <Zap size={48} className="mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">No products yet!</h3>
+                  <p className="text-gray-500 mb-6">Add products manually, import from CSV/JSON, or paste from Excel.</p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={addProduct}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Add First Product
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      Import Data
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Export Options */}
             {products.length > 0 && (
