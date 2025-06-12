@@ -6,12 +6,15 @@ const PriceListGenerator = () => {
   const [selectedCategory, setSelectedCategory] = useState('batteries');
   const [products, setProducts] = useState([]);
   const [companyInfo, setCompanyInfo] = useState({
-    phone: '+27 11 568-7166',
-    email: 'sales@bshockedelectrical.co.za',
-    website: 'https://bshockedelectrical.co.za',
-    terms: 'Payment terms are COD. T\'s & C\'s Apply.'
+    name: 'Your Company Name',
+    phone: '+1 234-567-8900',
+    email: 'sales@yourcompany.com',
+    website: 'https://yourcompany.com',
+    terms: 'Payment terms: Net 30. Terms & Conditions Apply.',
+    tagline: 'Your Company Tagline',
+    logo: null
   });
-  const [listTitle, setListTitle] = useState('LUNATIC LITHIUMS');
+  const [listTitle, setListTitle] = useState('PRODUCT CATALOG');
   const [bulletPoints, setBulletPoints] = useState({
     point1: 'Professional Grade',
     point2: 'Quality Assured', 
@@ -320,21 +323,14 @@ const PriceListGenerator = () => {
   };
 
   const exportToPDF = () => {
-    const printContent = printRef.current;
-    if (printContent) {
-      document.body.style.visibility = 'hidden';
-      printContent.style.visibility = 'visible';
-      printContent.style.position = 'absolute';
-      printContent.style.left = '0';
-      printContent.style.top = '0';
-      printContent.style.width = '100%';
-      
+    if (showPreview && printRef.current) {
       window.print();
-      
+    } else {
+      // If preview is hidden, show it temporarily for printing
+      setShowPreview(true);
       setTimeout(() => {
-        document.body.style.visibility = 'visible';
-        printContent.style.position = 'static';
-      }, 1000);
+        window.print();
+      }, 100);
     }
   };
 
@@ -424,8 +420,20 @@ const PriceListGenerator = () => {
       <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-8 print:p-6">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div className="flex-1">
-            <h1 className="text-4xl lg:text-5xl font-bold mb-4">B | SHOCKED</h1>
+            <div className="flex items-center gap-4 mb-4">
+              {companyInfo.logo && (
+                <div className="w-16 h-16 bg-white rounded-lg p-2 flex items-center justify-center">
+                  <img 
+                    src={companyInfo.logo} 
+                    alt={companyInfo.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
+              <h1 className="text-4xl lg:text-5xl font-bold">{companyInfo.name}</h1>
+            </div>
             <div className="text-sm lg:text-base space-y-2">
+              <div>• {companyInfo.tagline}</div>
               <div>• Prices are subject to change without prior notice.</div>
               <div>• {companyInfo.terms}</div>
             </div>
@@ -470,9 +478,13 @@ const PriceListGenerator = () => {
           </div>
           
           <div className="text-center">
-            <div className="text-sm mb-3">Scan to place orders online:</div>
-            <div className="w-20 h-20 bg-white rounded-lg mx-auto flex items-center justify-center shadow-lg">
-              <div className="text-black font-bold">QR</div>
+            <div className="text-sm mb-3">Scan to visit our website:</div>
+            <div className="w-24 h-24 bg-white rounded-lg mx-auto flex items-center justify-center shadow-lg p-2">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(companyInfo.website)}`}
+                alt="QR Code"
+                className="w-full h-full"
+              />
             </div>
           </div>
         </div>
@@ -483,10 +495,15 @@ const PriceListGenerator = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
+        {/* Auto-save indicator */}
+        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2 z-50">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          Auto-saving...
+        </div>
         <div className="bg-white rounded-xl shadow-xl mb-8">
           <div className="p-6 lg:p-8 border-b border-gray-200">
-            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">B SHOCKED Price List Generator</h1>
-            <p className="text-gray-600 text-lg">Create professional price sheets - Now on Steroids! 💪</p>
+            <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 mb-3">Universal Price List Generator</h1>
+            <p className="text-gray-600 text-base lg:text-lg">Create professional price sheets for any business</p>
           </div>
           
           <div className="p-6 lg:p-8">
@@ -627,6 +644,124 @@ const PriceListGenerator = () => {
             )}
 
             {/* Configuration Section */}
+            <div className="mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Company Information</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Company Name</label>
+                  <input
+                    type="text"
+                    value={companyInfo.name}
+                    onChange={(e) => setCompanyInfo({...companyInfo, name: e.target.value})}
+                    className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+                    placeholder="Your Company Name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Company Logo</label>
+                  <div className="flex gap-4 items-center">
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-300 flex items-center justify-center overflow-hidden">
+                      {companyInfo.logo ? (
+                        <img 
+                          src={companyInfo.logo} 
+                          alt="Company logo"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-gray-400 text-center">
+                          <div className="text-2xl mb-1">🏢</div>
+                          <div className="text-xs">No Logo</div>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            setCompanyInfo({...companyInfo, logo: e.target.result});
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => logoInputRef.current?.click()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Upload Logo
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Phone Number</label>
+                  <input
+                    type="text"
+                    value={companyInfo.phone}
+                    onChange={(e) => setCompanyInfo({...companyInfo, phone: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="+1 234-567-8900"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Email Address</label>
+                  <input
+                    type="email"
+                    value={companyInfo.email}
+                    onChange={(e) => setCompanyInfo({...companyInfo, email: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="sales@yourcompany.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Website</label>
+                  <input
+                    type="url"
+                    value={companyInfo.website}
+                    onChange={(e) => setCompanyInfo({...companyInfo, website: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="https://yourcompany.com"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Company Tagline</label>
+                  <input
+                    type="text"
+                    value={companyInfo.tagline}
+                    onChange={(e) => setCompanyInfo({...companyInfo, tagline: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Quality Products, Exceptional Service"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Terms & Conditions</label>
+                  <input
+                    type="text"
+                    value={companyInfo.terms}
+                    onChange={(e) => setCompanyInfo({...companyInfo, terms: e.target.value})}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Payment terms: Net 30. T&C's Apply."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Product Category and List Title */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">Product Category</label>
@@ -651,7 +786,7 @@ const PriceListGenerator = () => {
                   value={listTitle}
                   onChange={(e) => setListTitle(e.target.value)}
                   className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
-                  placeholder="e.g., LUNATIC LITHIUMS"
+                  placeholder="e.g., PRODUCT CATALOG"
                 />
               </div>
             </div>
@@ -697,22 +832,43 @@ const PriceListGenerator = () => {
 
             {/* Product Management */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">Products ({filteredProducts.length} of {products.length})</h3>
-                <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
-                  {/* Search */}
-                  <div className="relative">
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h3 className="text-xl lg:text-2xl font-bold text-gray-900">Products ({filteredProducts.length} of {products.length})</h3>
+                  
+                  {/* Mobile-friendly buttons */}
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => setShowPreview(!showPreview)}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 ${showPreview ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700'} text-white rounded-lg transition-colors font-medium`}
+                    >
+                      {showPreview ? <EyeOff size={20} /> : <Eye size={20} />}
+                      {showPreview ? 'Hide' : 'Show'} Preview
+                    </button>
+                    
+                    <button
+                      onClick={addProduct}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      <Plus size={20} />
+                      Add Product
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Search and View Options */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search products..."
-                      className="pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     />
                   </div>
                   
-                  {/* View Mode Toggle */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => setViewMode('grid')}
@@ -727,22 +883,6 @@ const PriceListGenerator = () => {
                       <List size={20} />
                     </button>
                   </div>
-                  
-                  <button
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
-                  >
-                    {showPreview ? <EyeOff size={20} /> : <Eye size={20} />}
-                    {showPreview ? 'Hide Preview' : 'Show Preview'}
-                  </button>
-                  
-                  <button
-                    onClick={addProduct}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    <Plus size={20} />
-                    Add Product
-                  </button>
                 </div>
               </div>
 
@@ -908,6 +1048,7 @@ const PriceListGenerator = () => {
                       onClick={() => fileInputRef.current?.click()}
                       className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                     >
+    
                       Import Data
                     </button>
                   </div>
