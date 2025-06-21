@@ -1091,50 +1091,52 @@ const PriceListGenerator = () => {
           </div>
         )}
       </div>
-      
 <style dangerouslySetInnerHTML={{
-  __html: `
-    @media print {
-      @page {
-        margin: 0.5in;
-        size: A4;
-      }
-      
-      body {
-        -webkit-print-color-adjust: exact;
-        color-adjust: exact;
-      }
-      
-      .no-print {
-        display: none !important;
-      }
-      
-      .bg-gradient-to-r,
-      .bg-blue-600,
-      .bg-gray-900,
-      .bg-gray-800 {
-        -webkit-print-color-adjust: exact;
-        color-adjust: exact;
-      }
-      
-      .print\\:gap-4 {
-        gap: 1rem;
-      }
-      
-      .print\\:p-4 {
-        padding: 1rem;
-      }
-      
-      .print\\:p-6 {
-        padding: 1.5rem;
-      }
-      
-      .print-break-inside-avoid {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-    }
-  `
-}} />
+        __html: `
+          @media print {
+            @page {
+              margin: 0.5in;
+              size: A4;
+            }
+            
+            body {
+              -webkit-print-color-adjust: exact;
+              color-adjust: exact;
+            }
+            
+            .no-print {
+              display: none !important;
+            }
+            
+            .bg-gradient-to-r,
+            .bg-blue-600,
+            .bg-gray-900,
+            .bg-gray-800 {
+              -webkit-print-color-adjust: exact;
+              color-adjust: exact;
+            }
+            
+            .print\\:gap-4 {
+              gap: 1rem;
+            }
+            
+            .print\\:p-4 {
+              padding: 1rem;
+            }
+            
+            .print\\:p-6 {
+              padding: 1.5rem;
+            }
+            
+            .print-break-inside-avoid {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+          }
+        `
+      }} />
+    </div>
+  );
+};
 
 export default PriceListGenerator;
