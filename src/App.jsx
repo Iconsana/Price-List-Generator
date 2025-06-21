@@ -29,6 +29,7 @@ const PriceListGenerator = () => {
   
   const printRef = useRef();
   const fileInputRef = useRef();
+  const logoInputRef = useRef();
 
   const categories = {
     batteries: {
@@ -1091,53 +1092,49 @@ const PriceListGenerator = () => {
         )}
       </div>
       
-      <style jsx>{`
-        @media print {
-          @page {
-            margin: 0.5in;
-            size: A4;
-          }
-          
-          body {
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-          }
-          
-          .no-print {
-            display: none !important;
-          }
-          
-          /* Ensure colors and gradients print */
-          .bg-gradient-to-r,
-          .bg-blue-600,
-          .bg-gray-900,
-          .bg-gray-800 {
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-          }
-          
-          /* Better spacing for print */
-          .print\\:gap-4 {
-            gap: 1rem;
-          }
-          
-          .print\\:p-4 {
-            padding: 1rem;
-          }
-          
-          .print\\:p-6 {
-            padding: 1.5rem;
-          }
-          
-          /* Ensure proper page breaks */
-          .print-break-inside-avoid {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-        }
-      `}</style>
-    </div>
-  );
-};
+<style dangerouslySetInnerHTML={{
+  __html: `
+    @media print {
+      @page {
+        margin: 0.5in;
+        size: A4;
+      }
+      
+      body {
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+      }
+      
+      .no-print {
+        display: none !important;
+      }
+      
+      .bg-gradient-to-r,
+      .bg-blue-600,
+      .bg-gray-900,
+      .bg-gray-800 {
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+      }
+      
+      .print\\:gap-4 {
+        gap: 1rem;
+      }
+      
+      .print\\:p-4 {
+        padding: 1rem;
+      }
+      
+      .print\\:p-6 {
+        padding: 1.5rem;
+      }
+      
+      .print-break-inside-avoid {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  `
+}} />
 
 export default PriceListGenerator;
