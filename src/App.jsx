@@ -86,9 +86,101 @@ const PriceListGenerator = () => {
         }
       };
       reader.readAsText(file);
+    } else if (fileType === 'pdf') {
+      // PDF parsing functionality
+      handlePDFUpload(file);
     } else {
-      alert('Please upload a CSV or JSON file.');
+      alert('Please upload a CSV, JSON, or PDF file.');
     }
+  };
+
+  // PDF upload handler
+  const handlePDFUpload = async (file) => {
+    try {
+      // Load PDF.js from CDN
+      if (!window.pdfjsLib) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => processPDF(file);
+        document.head.appendChild(script);
+      } else {
+        processPDF(file);
+      }
+    } catch (error) {
+      alert('Error loading PDF processor. Please try again.');
+    }
+  };
+
+  // Process PDF file
+  const processPDF = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
+      
+      let fullText = '';
+      
+      // Extract text from all pages
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      // Parse the extracted text for product information
+      const parsedProducts = parsePDFText(fullText);
+      
+      if (parsedProducts.length > 0) {
+        setProducts([...products, ...parsedProducts]);
+        alert(`Successfully imported ${parsedProducts.length} products from PDF!`);
+      } else {
+        alert('No product data found in PDF. Try using the Bulk Edit feature to paste your data manually.');
+      }
+      
+    } catch (error) {
+      console.error('PDF processing error:', error);
+      alert('Error processing PDF. Please ensure it contains readable text, or try using Bulk Edit instead.');
+    }
+  };
+
+  // Parse PDF text content for products
+  const parsePDFText = (text) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const products = [];
+    
+    // Simple pattern matching for common price list formats
+    lines.forEach((line, index) => {
+      // Look for lines that contain price patterns (R, $, €, etc.)
+      const pricePattern = /([R$€£¥]\s*[\d,]+\.?\d*)/g;
+      const priceMatch = line.match(pricePattern);
+      
+      if (priceMatch && line.length > 10) { // Likely a product line
+        // Extract model name (text before price)
+        const modelText = line.split(priceMatch[0])[0].trim();
+        
+        if (modelText && modelText.length > 2) {
+          const product = {
+            id: Date.now() + index,
+            model: modelText.substring(0, 100), // Limit length
+            image: null,
+            specs: {},
+            price: priceMatch[0],
+            incVat: 'INCL VAT',
+            productUrl: ''
+          };
+          
+          // Try to extract basic specs from the remaining text
+          const remainingText = line.split(priceMatch[0])[1];
+          if (remainingText) {
+            product.specs.description = remainingText.trim().substring(0, 200);
+          }
+          
+          products.push(product);
+        }
+      }
+    });
+    
+    return products;
   };
 
   // Bulk edit functionality
@@ -244,14 +336,202 @@ const PriceListGenerator = () => {
   };
 
   const exportToPDF = () => {
-    if (printRef.current) {
-      window.print();
-    } else {
+    if (!printRef.current) {
       setShowPreview(true);
       setTimeout(() => {
-        window.print();
-      }, 100);
+        exportToPDF();
+      }, 500);
+      return;
     }
+
+    // Create a new window with only the preview content
+    const printWindow = window.open('', '_blank');
+    
+    // Get the preview content
+    const previewContent = printRef.current.outerHTML;
+    
+    // Create the print document
+    const printDocument = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Price List - ${companyInfo.name}</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.5;
+              color: #111827;
+              background: white;
+            }
+            
+            @media print {
+              @page {
+                margin: 0.5in;
+                size: A4;
+              }
+              
+              body {
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              
+              .no-print {
+                display: none !important;
+              }
+            }
+            
+            /* Tailwind-like utility classes for the print version */
+            .bg-white { background-color: #ffffff; }
+            .bg-gray-50 { background-color: #f9fafb; }
+            .bg-gray-100 { background-color: #f3f4f6; }
+            .bg-gray-200 { background-color: #e5e7eb; }
+            .bg-gray-900 { background-color: #111827; }
+            .bg-blue-600 { background-color: #2563eb; }
+            .bg-blue-900 { background-color: #1e3a8a; }
+            .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+            .from-gray-900 { --tw-gradient-from: #111827; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(17, 24, 39, 0)); }
+            .to-blue-900 { --tw-gradient-to: #1e3a8a; }
+            
+            .text-white { color: #ffffff; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-800 { color: #1f2937; }
+            .text-gray-900 { color: #111827; }
+            .text-blue-600 { color: #2563eb; }
+            .text-red-400 { color: #f87171; }
+            
+            .text-xs { font-size: 0.75rem; }
+            .text-sm { font-size: 0.875rem; }
+            .text-base { font-size: 1rem; }
+            .text-lg { font-size: 1.125rem; }
+            .text-xl { font-size: 1.25rem; }
+            .text-2xl { font-size: 1.5rem; }
+            .text-3xl { font-size: 1.875rem; }
+            .text-4xl { font-size: 2.25rem; }
+            .text-5xl { font-size: 3rem; }
+            
+            .font-medium { font-weight: 500; }
+            .font-semibold { font-weight: 600; }
+            .font-bold { font-weight: 700; }
+            
+            .p-2 { padding: 0.5rem; }
+            .p-4 { padding: 1rem; }
+            .p-6 { padding: 1.5rem; }
+            .p-8 { padding: 2rem; }
+            .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+            .px-8 { padding-left: 2rem; padding-right: 2rem; }
+            .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+            .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+            .mb-2 { margin-bottom: 0.5rem; }
+            .mb-3 { margin-bottom: 0.75rem; }
+            .mb-4 { margin-bottom: 1rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .mt-2 { margin-top: 0.5rem; }
+            .mt-3 { margin-top: 0.75rem; }
+            .mt-8 { margin-top: 2rem; }
+            .ml-2 { margin-left: 0.5rem; }
+            .gap-2 { gap: 0.5rem; }
+            .gap-3 { gap: 0.75rem; }
+            .gap-4 { gap: 1rem; }
+            .gap-6 { gap: 1.5rem; }
+            .gap-8 { gap: 2rem; }
+            
+            .flex { display: flex; }
+            .flex-col { flex-direction: column; }
+            .flex-row { flex-direction: row; }
+            .flex-1 { flex: 1 1 0%; }
+            .flex-shrink-0 { flex-shrink: 0; }
+            .items-start { align-items: flex-start; }
+            .items-center { align-items: center; }
+            .items-end { align-items: flex-end; }
+            .justify-start { justify-content: flex-start; }
+            .justify-center { justify-content: center; }
+            .justify-between { justify-content: space-between; }
+            
+            .grid { display: grid; }
+            .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            
+            .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+            
+            .w-full { width: 100%; }
+            .w-16 { width: 4rem; }
+            .w-24 { width: 6rem; }
+            .w-40 { width: 10rem; }
+            .h-16 { height: 4rem; }
+            .h-24 { height: 6rem; }
+            .h-40 { height: 10rem; }
+            .h-full { height: 100%; }
+            .min-w-0 { min-width: 0px; }
+            .min-h-screen { min-height: 100vh; }
+            
+            .rounded-lg { border-radius: 0.5rem; }
+            .rounded-xl { border-radius: 0.75rem; }
+            .border-2 { border-width: 2px; }
+            .border-gray-200 { border-color: #e5e7eb; }
+            
+            .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+            .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+            
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+            
+            .overflow-hidden { overflow: hidden; }
+            .object-cover { object-fit: cover; }
+            .object-contain { object-fit: contain; }
+            
+            /* Custom styles for print */
+            .print-container {
+              width: 100%;
+              max-width: none;
+            }
+            
+            @media (min-width: 1024px) {
+              .lg\\:flex-row { flex-direction: row; }
+              .lg\\:text-left { text-align: left; }
+              .lg\\:text-right { text-align: right; }
+              .lg\\:text-base { font-size: 1rem; }
+              .lg\\:text-5xl { font-size: 3rem; }
+              .lg\\:text-3xl { font-size: 1.875rem; }
+              .lg\\:p-10 { padding: 2.5rem; }
+              .lg\\:p-8 { padding: 2rem; }
+              .lg\\:w-auto { width: auto; }
+              .lg\\:justify-start { justify-content: flex-start; }
+            }
+            
+            @media (min-width: 1280px) {
+              .xl\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+          </style>
+        </head>
+        <body>
+          ${previewContent}
+          <script>
+            // Auto-print when loaded
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.onafterprint = function() {
+                  window.close();
+                };
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printDocument);
+    printWindow.document.close();
   };
 
   // Filter products based on search
@@ -489,6 +769,16 @@ const PriceListGenerator = () => {
                 onChange={handleFileUpload}
                 className="hidden"
               />
+              
+              {/* Import Instructions */}
+              <div className="mt-4 text-sm text-gray-600">
+                <p><strong>Import Options:</strong></p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li><strong>CSV/JSON:</strong> Structured data files with product information</li>
+                  <li><strong>PDF:</strong> Automatically extracts product names and prices from price lists</li>
+                  <li><strong>Bulk Edit:</strong> Paste tab-separated data directly from Excel/Google Sheets</li>
+                </ul>
+              </div>
             </div>
 
             {/* Saved Templates */}
@@ -916,7 +1206,7 @@ const PriceListGenerator = () => {
                 <div className="text-center py-16 bg-gray-50 rounded-xl">
                   <Zap size={48} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-xl font-semibold text-gray-700 mb-2">No products yet!</h3>
-                  <p className="text-gray-500 mb-6">Add products manually, import from CSV/JSON, or paste from Excel.</p>
+                  <p className="text-gray-500 mb-6">Add products manually, import from CSV/JSON/PDF, or paste from Excel.</p>
                   <div className="flex gap-4 justify-center">
                     <button
                       onClick={addProduct}
@@ -941,10 +1231,11 @@ const PriceListGenerator = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <h4 className="font-semibold text-blue-900 mb-2">Export Instructions</h4>
                   <p className="text-blue-800 text-sm">
-                    • Click "Export Price List" to open print dialog<br/>
-                    • Choose "Save as PDF" or your preferred printer<br/>
+                    • Click "Export Price List" to open a new window with only your price list<br/>
+                    • The new window will automatically trigger the print dialog<br/>
+                    • Choose "Save as PDF" from the print destination<br/>
                     • Products with URLs will be clickable when viewed digitally<br/>
-                    • For best results, use A4 paper size
+                    • For best results, use A4 paper size and check "More settings" → "Background graphics"
                   </p>
                 </div>
                 <button
