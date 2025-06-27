@@ -632,6 +632,49 @@ const ShopifyPriceListGenerator = () => {
                 <div>No Image</div>
               </div>
     )}
+          
+          <div className="flex-1 min-w-0 w-full">
+            <h3 className="font-bold text-xl text-gray-900 mb-4">{product.model || 'Product Model'}</h3>
+            
+            <div className="space-y-2 text-sm">
+              {Object.entries(product.specs).map(([key, value]) => {
+                if (!value) return null;
+                const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+                return (
+                  <div key={key} className="flex flex-wrap">
+                    <span className="text-gray-600 font-medium">• {label}:</span>
+                    <span className="ml-2 font-semibold text-gray-800">{value}</span>
+                  </div>
+                );
+              })}
+              
+              {product.productUrl && isPreview && (
+                <div className="flex flex-wrap mt-3">
+                  <span className="text-blue-600 font-medium text-xs">🔗 Click anywhere to view details</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
+            <div className="flex flex-col items-center sm:items-end gap-3">
+              <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
+                <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
+                {product.comparePrice && (
+                  <div className="text-xs text-red-400 line-through">{product.comparePrice}</div>
+                )}
+                <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
+              </div>
+              {product.shopifyData && (
+                <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                  From Shopify
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
 
     if (isPreview && product.productUrl) {
       return (
