@@ -631,7 +631,7 @@ const ShopifyPriceListGenerator = () => {
                 <div className="text-3xl mb-2">📷</div>
                 <div>No Image</div>
               </div>
-    );
+    )}
 
     if (isPreview && product.productUrl) {
       return (
