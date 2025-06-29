@@ -1874,11 +1874,10 @@ export default ShopifyPriceListGenerator;
             <div className="p-6 lg:p-8 border-b border-gray-200">
               <h3 className="text-2xl font-bold text-gray-900">Preview</h3>
             </div>
+            </div>
             <PreviewSheet />
           </div>
         )}
-      </div>
-    </div>
   );
 };
 
