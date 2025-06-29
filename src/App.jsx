@@ -1867,8 +1867,6 @@ export default ShopifyPriceListGenerator;
                 </button>
               </div>
             )}
-          </div>
-        </div>
 
         {/* Preview Section */}
         {showPreview && products.length > 0 && (
