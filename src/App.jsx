@@ -615,83 +615,83 @@ const ShopifyPriceListGenerator = () => {
     )
   );
 
-  const ProductCard = ({ product, isPreview = false }) => {
-    const cardContent = (
-      <div className={`bg-white rounded-xl border-2 border-gray-200 p-6 ${isPreview ? 'shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer' : ''} ${product.productUrl && isPreview ? 'hover:border-blue-400' : ''}`}>
-        <div className="flex flex-col sm:flex-row items-start gap-6">
-          <div className="w-full sm:w-40 h-40 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
-            {product.image ? (
-              <img 
-                src={product.image} 
-                alt={product.model}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-gray-400 text-sm text-center">
-                <div className="text-3xl mb-2">📷</div>
-                <div>No Image</div>
-              </div>
-    )}
+const ProductCard = ({ product, isPreview = false }) => {
+  const cardContent = (
+    <div className={`bg-white rounded-xl border-2 border-gray-200 p-6 ${isPreview ? 'shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer' : ''} ${product.productUrl && isPreview ? 'hover:border-blue-400' : ''}`}>
+      <div className="flex flex-col sm:flex-row items-start gap-6">
+        <div className="w-full sm:w-40 h-40 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-gray-200 flex-shrink-0">
+          {product.image ? (
+            <img 
+              src={product.image} 
+              alt={product.model}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="text-gray-400 text-sm text-center">
+              <div className="text-3xl mb-2">📷</div>
+              <div>No Image</div>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0 w-full">
+          <h3 className="font-bold text-xl text-gray-900 mb-4">{product.model || 'Product Model'}</h3>
           
-          <div className="flex-1 min-w-0 w-full">
-            <h3 className="font-bold text-xl text-gray-900 mb-4">{product.model || 'Product Model'}</h3>
+          <div className="space-y-2 text-sm">
+            {Object.entries(product.specs).map(([key, value]) => {
+              if (!value) return null;
+              const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+              return (
+                <div key={key} className="flex flex-wrap">
+                  <span className="text-gray-600 font-medium">• {label}:</span>
+                  <span className="ml-2 font-semibold text-gray-800">{value}</span>
+                </div>
+              );
+            })}
             
-            <div className="space-y-2 text-sm">
-              {Object.entries(product.specs).map(([key, value]) => {
-                if (!value) return null;
-                const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-                return (
-                  <div key={key} className="flex flex-wrap">
-                    <span className="text-gray-600 font-medium">• {label}:</span>
-                    <span className="ml-2 font-semibold text-gray-800">{value}</span>
-                  </div>
-                );
-              })}
-              
-              {product.productUrl && isPreview && (
-                <div className="flex flex-wrap mt-3">
-                  <span className="text-blue-600 font-medium text-xs">🔗 Click anywhere to view details</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
-            <div className="flex flex-col items-center sm:items-end gap-3">
-              <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
-                <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
-                {product.comparePrice && (
-                  <div className="text-xs text-red-400 line-through">{product.comparePrice}</div>
-                )}
-                <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
+            {product.productUrl && isPreview && (
+              <div className="flex flex-wrap mt-3">
+                <span className="text-blue-600 font-medium text-xs">🔗 Click anywhere to view details</span>
               </div>
-              {product.shopifyData && (
-                <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                  From Shopify
-                </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="w-full sm:w-auto text-center sm:text-right flex-shrink-0">
+          <div className="flex flex-col items-center sm:items-end gap-3">
+            <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-3 rounded-xl shadow-lg">
+              <div className="text-2xl font-bold">{product.price || 'R 0.00'}</div>
+              {product.comparePrice && (
+                <div className="text-xs text-red-400 line-through">{product.comparePrice}</div>
               )}
+              <div className="text-xs text-red-400 font-bold mt-1">{product.incVat}</div>
             </div>
+            {product.shopifyData && (
+              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                From Shopify
+              </div>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  if (isPreview && product.productUrl) {
+    return (
+      <a 
+        href={product.productUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="block transform hover:scale-[1.02] transition-transform duration-200"
+      >
+        {cardContent}
+      </a>
     );
+  }
 
-    if (isPreview && product.productUrl) {
-      return (
-        <a 
-          href={product.productUrl} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="block transform hover:scale-[1.02] transition-transform duration-200"
-        >
-          {cardContent}
-        </a>
-      );
-    }
-
-    return cardContent;
-  };
-
+  return cardContent;
+};
   const PreviewSheet = () => (
     <div ref={printRef} className="bg-white min-h-screen">
       <div className="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-8">
