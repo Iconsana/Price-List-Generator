@@ -1,40 +1,53 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Download, Plus, Trash2, Upload, Save, FileText, Zap, Eye, EyeOff, Copy, Grid, List, Search, Filter, ChevronDown, ChevronRight, ShoppingBag, Tags, Package, DollarSign, Star, Layers, RefreshCw, Check, X, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { Redirect } from '@shopify/app-bridge/actions';
+import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
+import { 
+  Download, Plus, Trash2, Eye, EyeOff, Copy, Grid, List, Search, 
+  ShoppingBag, Package, RefreshCw, Check, X, AlertCircle, Loader2,
+  ExternalLink, FileText, Zap
+} from 'lucide-react';
 
 const ShopifyPriceListGenerator = () => {
-  // Shopify Connection State
-  const [shopifyConnected, setShopifyConnected] = useState(false);
-  const [shopifyStore, setShopifyStore] = useState('');
-  const [shopifyToken, setShopifyToken] = useState('');
-  const [connecting, setConnecting] = useState(false);
-
+  const app = useAppBridge();
+  const fetch = useAuthenticatedFetch();
+  
   // Shopify Data State
+  const [shopInfo, setShopInfo] = useState(null);
   const [shopifyProducts, setShopifyProducts] = useState([]);
   const [shopifyCollections, setShopifyCollections] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Pagination
+  const [pagination, setPagination] = useState({
+    next_page_info: null,
+    prev_page_info: null,
+    has_next: false,
+    has_prev: false
+  });
 
   // Filter State
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [filterMode, setFilterMode] = useState('all'); // 'all', 'collection', 'type', 'vendor', 'custom'
+  const [filterMode, setFilterMode] = useState('all');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedVendor, setSelectedVendor] = useState('');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-  const [selectedTags, setSelectedTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Existing state from original component
-  const [selectedCategory, setSelectedCategory] = useState('batteries');
+  // App State
   const [products, setProducts] = useState([]);
   const [companyInfo, setCompanyInfo] = useState({
-    name: 'Your Company Name',
-    phone: '+1 234-567-8900',
-    email: 'sales@yourcompany.com',
-    website: 'https://yourcompany.com',
+    name: '',
+    phone: '',
+    email: '',
+    website: '',
     terms: 'Payment terms: Net 30. Terms & Conditions Apply.',
-    tagline: 'Your Company Tagline',
+    tagline: '',
     logo: null
   });
   const [listTitle, setListTitle] = useState('PRODUCT CATALOG');
@@ -44,211 +57,135 @@ const ShopifyPriceListGenerator = () => {
     point3: 'Fast Delivery'
   });
   const [showPreview, setShowPreview] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState([]);
-  const [viewMode, setViewMode] = useState('grid'); // grid or list
-  const [showBulkEdit, setShowBulkEdit] = useState(false);
-  const [bulkEditData, setBulkEditData] = useState('');
-  const [showShopifyPanel, setShowShopifyPanel] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
   
   const printRef = useRef();
-  const fileInputRef = useRef();
   const logoInputRef = useRef();
 
-  const categories = {
-    batteries: {
-      name: 'Batteries',
-      color: '#00a8cc',
-      fields: ['model', 'capacity', 'voltage', 'dimensions', 'price']
-    },
-    solar: {
-      name: 'Solar Panels',
-      color: '#ff6b35',
-      fields: ['model', 'wattage', 'efficiency', 'dimensions', 'pricePerWatt', 'unitPrice']
-    },
-    inverters: {
-      name: 'Inverters',
-      color: '#4ecdc4',
-      fields: ['model', 'power', 'inputVoltage', 'outputVoltage', 'efficiency', 'price']
-    },
-    mounting: {
-      name: 'Mounting Systems',
-      color: '#45b7d1',
-      fields: ['model', 'material', 'suitableFor', 'dimensions', 'price']
-    }
-  };
+  // Fetch shop info and initialize data
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        setInitialLoading(true);
+        setError(null);
 
-  // REAL Shopify API Integration Functions
-  const shopifyAPI = {
-    // Fetch products from Shopify store
-    fetchProducts: async (store, token, limit = 250) => {
-      const url = `https://${store}.myshopify.com/admin/api/2024-01/products.json?limit=${limit}`;
-      const response = await fetch(url, {
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}. ${errorData}`);
+        // Fetch shop info
+        const shopResponse = await fetch('/api/shop');
+        if (!shopResponse.ok) throw new Error('Failed to fetch shop info');
+        const shopData = await shopResponse.json();
+        
+        setShopInfo(shopData.shop);
+        
+        // Pre-fill company info from shop data
+        setCompanyInfo(prev => ({
+          ...prev,
+          name: shopData.shop.name || prev.name,
+          email: shopData.shop.email || prev.email,
+          phone: shopData.shop.phone || prev.phone,
+          website: `https://${shopData.shop.domain}` || prev.website,
+          tagline: shopData.shop.shop_owner || prev.tagline
+        }));
+
+        // Fetch initial data
+        await Promise.all([
+          fetchProducts(),
+          fetchCollections()
+        ]);
+
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+        setError(`Failed to initialize: ${error.message}`);
+      } finally {
+        setInitialLoading(false);
       }
-      
-      const data = await response.json();
-      return data.products || [];
-    },
+    };
 
-    // Fetch collections from Shopify store
-    fetchCollections: async (store, token) => {
-      const url = `https://${store}.myshopify.com/admin/api/2024-01/collections.json`;
-      const response = await fetch(url, {
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to fetch collections: ${response.status} ${response.statusText}. ${errorData}`);
-      }
-      
-      const data = await response.json();
-      return data.collections || [];
-    },
+    initializeApp();
+  }, []);
 
-    // Test connection to Shopify store
-    testConnection: async (store, token) => {
-      const url = `https://${store}.myshopify.com/admin/api/2024-01/shop.json`;
-      const response = await fetch(url, {
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Connection failed: ${response.status} ${response.statusText}. ${errorData}`);
-      }
-      
-      return await response.json();
-    },
-
-    // Fetch products from specific collection
-    fetchCollectionProducts: async (store, token, collectionId) => {
-      const url = `https://${store}.myshopify.com/admin/api/2024-01/collections/${collectionId}/products.json`;
-      const response = await fetch(url, {
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to fetch collection products: ${response.status} ${response.statusText}. ${errorData}`);
-      }
-      
-      const data = await response.json();
-      return data.products || [];
-    }
-  };
-
-  // Connect to Shopify store with real API
-  const connectToShopify = async () => {
-    if (!shopifyStore || !shopifyToken) {
-      alert('Please enter both store name and access token');
-      return;
-    }
-
-    setConnecting(true);
-    
+  // Fetch products from Shopify API
+  const fetchProducts = useCallback(async (pageInfo = null) => {
     try {
-      // Clean store name
-      const cleanStoreName = shopifyStore.replace(/\.myshopify\.com.*/, '').trim();
-      
-      // Test connection first
-      console.log(`Testing connection to ${cleanStoreName}.myshopify.com...`);
-      await shopifyAPI.testConnection(cleanStoreName, shopifyToken);
-      
-      console.log('Connection successful, fetching data...');
-      
-      // Fetch products and collections in parallel
-      const [products, collections] = await Promise.all([
-        shopifyAPI.fetchProducts(cleanStoreName, shopifyToken),
-        shopifyAPI.fetchCollections(cleanStoreName, shopifyToken)
-      ]);
+      setLoading(true);
+      setError(null);
 
-      console.log(`Fetched ${products.length} products and ${collections.length} collections`);
-
-      // Process and set data
-      setShopifyProducts(products);
-      setShopifyCollections(collections);
+      const params = new URLSearchParams();
+      if (pageInfo) params.append('page_info', pageInfo);
+      
+      const response = await fetch(`/api/products?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+      
+      const data = await response.json();
+      
+      setShopifyProducts(data.products);
+      setPagination(data.pagination);
       
       // Extract unique product types and vendors
-      const types = [...new Set(products.map(p => p.product_type).filter(Boolean))];
-      const vendorList = [...new Set(products.map(p => p.vendor).filter(Boolean))];
+      const types = [...new Set(data.products.map(p => p.product_type).filter(Boolean))];
+      const vendorList = [...new Set(data.products.map(p => p.vendor).filter(Boolean))];
       
       setProductTypes(types);
       setVendors(vendorList);
-      setShopifyConnected(true);
-      setShopifyStore(cleanStoreName);
-      
-      // Update company info with store name if not already set
-      if (companyInfo.name === 'Your Company Name') {
-        setCompanyInfo(prev => ({
-          ...prev,
-          name: cleanStoreName.charAt(0).toUpperCase() + cleanStoreName.slice(1).replace(/-/g, ' '),
-          website: `https://${cleanStoreName}.myshopify.com`
-        }));
-      }
-      
-      alert(`Successfully connected to ${cleanStoreName}! Found ${products.length} products and ${collections.length} collections.`);
       
     } catch (error) {
-      console.error('Shopify connection error:', error);
-      let errorMessage = `Failed to connect to Shopify: ${error.message}\n\nPlease check:\n`;
-      errorMessage += `• Store name is correct (without .myshopify.com)\n`;
-      errorMessage += `• Access token is valid and starts with 'shpat_'\n`;
-      errorMessage += `• Token has 'read_products' and 'read_collections' permissions\n`;
-      errorMessage += `• Private app is installed and active`;
-      
-      alert(errorMessage);
+      console.error('Error fetching products:', error);
+      setError(`Failed to fetch products: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
-    
-    setConnecting(false);
-  };
+  }, [fetch]);
+
+  // Fetch collections
+  const fetchCollections = useCallback(async () => {
+    try {
+      const response = await fetch('/api/collections');
+      if (!response.ok) throw new Error('Failed to fetch collections');
+      
+      const data = await response.json();
+      setShopifyCollections(data.collections);
+      
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+      setError(`Failed to fetch collections: ${error.message}`);
+    }
+  }, [fetch]);
+
+  // Search products
+  const searchProducts = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      await fetchProducts();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        query: searchQuery,
+        limit: '50'
+      });
+
+      if (selectedType) params.append('product_type', selectedType);
+      if (selectedVendor) params.append('vendor', selectedVendor);
+
+      const response = await fetch(`/api/products/search?${params}`);
+      if (!response.ok) throw new Error('Failed to search products');
+      
+      const data = await response.json();
+      setShopifyProducts(data.products);
+      
+    } catch (error) {
+      console.error('Error searching products:', error);
+      setError(`Search failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, selectedType, selectedVendor, fetch, fetchProducts]);
 
   // Filter products based on current selection
   const getFilteredShopifyProducts = () => {
     let filtered = [...shopifyProducts];
 
-    // Apply search query
-    if (searchQuery) {
-      filtered = filtered.filter(product =>
-        product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.product_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.vendor?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.tags?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply filters based on mode
     switch (filterMode) {
-      case 'collection':
-        if (selectedCollection) {
-          // Note: Shopify API doesn't include collection_ids in product data by default
-          // You might need to fetch collection products separately
-          filtered = filtered.filter(product => 
-            product.collection_ids?.includes(parseInt(selectedCollection))
-          );
-        }
-        break;
       case 'type':
         if (selectedType) {
           filtered = filtered.filter(product => product.product_type === selectedType);
@@ -260,7 +197,6 @@ const ShopifyPriceListGenerator = () => {
         }
         break;
       case 'custom':
-        // Apply price range
         if (priceRange.min || priceRange.max) {
           filtered = filtered.filter(product => {
             const price = parseFloat(product.variants[0]?.price || 0);
@@ -291,12 +227,14 @@ const ShopifyPriceListGenerator = () => {
         stock: variant.inventory_quantity || 0,
         weight: variant.weight ? `${variant.weight} ${variant.weight_unit}` : '',
         barcode: variant.barcode || '',
-        description: shopifyProduct.body_html ? shopifyProduct.body_html.replace(/<[^>]*>/g, '').substring(0, 100) : ''
+        description: shopifyProduct.body_html ? 
+          shopifyProduct.body_html.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : ''
       },
       price: `R ${parseFloat(variant.price || 0).toFixed(2)}`,
-      comparePrice: variant.compare_at_price ? `R ${parseFloat(variant.compare_at_price).toFixed(2)}` : '',
+      comparePrice: variant.compare_at_price ? 
+        `R ${parseFloat(variant.compare_at_price).toFixed(2)}` : '',
       incVat: 'INCL VAT',
-      productUrl: `https://${shopifyStore}.myshopify.com/products/${shopifyProduct.handle}`,
+      productUrl: shopInfo ? `https://${shopInfo.domain}/products/${shopifyProduct.handle}` : '',
       shopifyData: {
         productId: shopifyProduct.id,
         variantId: variant.id,
@@ -315,7 +253,6 @@ const ShopifyPriceListGenerator = () => {
     selectedProducts.forEach(productId => {
       const shopifyProduct = shopifyProducts.find(p => p.id.toString() === productId);
       if (shopifyProduct) {
-        // Add all variants as separate products
         shopifyProduct.variants.forEach((variant, index) => {
           newProducts.push(convertShopifyProduct(shopifyProduct, index));
         });
@@ -324,7 +261,14 @@ const ShopifyPriceListGenerator = () => {
 
     setProducts([...products, ...newProducts]);
     setSelectedProducts([]);
-    alert(`Added ${newProducts.length} product(s) to your price list!`);
+    
+    // Show success message
+    if (app) {
+      app.dispatch(Redirect.create(app, {
+        message: `Added ${newProducts.length} product(s) to your price list!`,
+        kind: 'success'
+      }));
+    }
   };
 
   // Toggle product selection
@@ -336,29 +280,17 @@ const ShopifyPriceListGenerator = () => {
     );
   };
 
-  // Select all filtered products
-  const selectAllFiltered = () => {
-    const filteredProducts = getFilteredShopifyProducts();
-    const allIds = filteredProducts.map(p => p.id.toString());
-    setSelectedProducts(allIds);
-  };
-
-  // Clear all selections
-  const clearAllSelections = () => {
-    setSelectedProducts([]);
-  };
-
-  // Add products from collection using real API
+  // Add products from collection
   const addFromCollection = async (collectionId) => {
-    if (!shopifyConnected) return;
-    
-    setLoading(true);
     try {
-      // Fetch products from specific collection
-      const collectionProducts = await shopifyAPI.fetchCollectionProducts(shopifyStore, shopifyToken, collectionId);
+      setLoading(true);
+      const response = await fetch(`/api/collections/${collectionId}/products`);
+      if (!response.ok) throw new Error('Failed to fetch collection products');
       
+      const data = await response.json();
       const newProducts = [];
-      collectionProducts.forEach(shopifyProduct => {
+      
+      data.products.forEach(shopifyProduct => {
         shopifyProduct.variants.forEach((variant, index) => {
           newProducts.push(convertShopifyProduct(shopifyProduct, index));
         });
@@ -367,61 +299,32 @@ const ShopifyPriceListGenerator = () => {
       setProducts([...products, ...newProducts]);
       
       const collection = shopifyCollections.find(c => c.id.toString() === collectionId);
-      alert(`Added ${newProducts.length} product(s) from "${collection?.title}" collection!`);
+      setError(null);
       
     } catch (error) {
       console.error('Error fetching collection products:', error);
-      alert(`Error loading collection products: ${error.message}`);
+      setError(`Error loading collection products: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // Refresh Shopify data
-  const refreshShopifyData = async () => {
-    if (!shopifyConnected) return;
-    
-    setLoading(true);
-    try {
-      const [products, collections] = await Promise.all([
-        shopifyAPI.fetchProducts(shopifyStore, shopifyToken),
-        shopifyAPI.fetchCollections(shopifyStore, shopifyToken)
-      ]);
-
-      setShopifyProducts(products);
-      setShopifyCollections(collections);
-      
-      const types = [...new Set(products.map(p => p.product_type).filter(Boolean))];
-      const vendorList = [...new Set(products.map(p => p.vendor).filter(Boolean))];
-      
-      setProductTypes(types);
-      setVendors(vendorList);
-      
-      alert('Shopify data refreshed successfully!');
-      
-    } catch (error) {
-      console.error('Error refreshing Shopify data:', error);
-      alert(`Error refreshing data: ${error.message}`);
-    }
-    setLoading(false);
-  };
-
-  // Existing functions from original component
+  // Standard product management functions
   const addProduct = () => {
     const newProduct = {
       id: Date.now(),
       model: '',
       image: null,
-      specs: {},
+      specs: {
+        sku: '',
+        type: '',
+        vendor: '',
+        description: ''
+      },
       price: '',
       incVat: 'INCL VAT',
       productUrl: ''
     };
-    
-    categories[selectedCategory].fields.forEach(field => {
-      if (field !== 'price') {
-        newProduct.specs[field] = '';
-      }
-    });
     
     setProducts([...products, newProduct]);
   };
@@ -458,11 +361,31 @@ const ShopifyPriceListGenerator = () => {
     }
   };
 
-  const exportToPDF = () => {
+  // Export to PDF
+  const exportToPDF = async () => {
+    try {
+      // First try to generate PDF on backend
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products, companyInfo, listTitle, bulletPoints })
+      });
+      
+      if (response.ok) {
+        // For now, fall back to frontend PDF generation
+        exportToPDFFrontend();
+      }
+    } catch (error) {
+      console.error('Backend PDF generation failed, using frontend:', error);
+      exportToPDFFrontend();
+    }
+  };
+
+  const exportToPDFFrontend = () => {
     if (!printRef.current) {
       setShowPreview(true);
       setTimeout(() => {
-        exportToPDF();
+        exportToPDFFrontend();
       }, 500);
       return;
     }
@@ -614,6 +537,19 @@ const ShopifyPriceListGenerator = () => {
       spec.toString().toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
+
+  // Loading state
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin mx-auto mb-4" size={48} />
+          <h2 className="text-xl font-semibold text-gray-900">Loading Shopify Store...</h2>
+          <p className="text-gray-600">Connecting to your store and fetching data</p>
+        </div>
+      </div>
+    );
+  }
 
   const ProductCard = ({ product, isPreview = false }) => {
     const cardContent = (
@@ -773,168 +709,74 @@ const ShopifyPriceListGenerator = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={16} />
+              <div className="text-sm text-red-800">
+                <p className="font-semibold">Error</p>
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-xl mb-8">
           <div className="p-6 lg:p-8 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
-                <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 mb-3">Shopify Price List Generator</h1>
-                <p className="text-gray-600 text-base lg:text-lg">Connect your Shopify store and create professional price lists</p>
+                <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 mb-3">
+                  {shopInfo ? `${shopInfo.name} - Price List Generator` : 'Shopify Price List Generator'}
+                </h1>
+                <p className="text-gray-600 text-base lg:text-lg">
+                  {shopInfo ? 
+                    `Connected to ${shopInfo.domain} • ${shopifyProducts.length} products available` :
+                    'Loading your Shopify store...'
+                  }
+                </p>
               </div>
               <div className="flex items-center gap-4">
-                {shopifyConnected ? (
+                {shopInfo ? (
                   <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg">
                     <Check size={20} />
-                    <span className="font-medium">Connected to {shopifyStore}</span>
+                    <span className="font-medium">Connected</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 rounded-lg">
-                    <X size={20} />
-                    <span className="font-medium">Not Connected</span>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg">
+                    <Loader2 size={20} className="animate-spin" />
+                    <span className="font-medium">Loading...</span>
                   </div>
                 )}
-                <button
-                  onClick={() => setShowShopifyPanel(!showShopifyPanel)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <ShoppingBag size={20} />
-                  Shopify
-                </button>
               </div>
             </div>
           </div>
-          
-          {/* Shopify Connection Panel */}
-          {showShopifyPanel && (
-            <div className="p-6 lg:p-8 bg-blue-50 border-b border-blue-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Shopify Connection</h3>
-              
-              {!shopifyConnected ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Store Name</label>
-                      <input
-                        type="text"
-                        value={shopifyStore}
-                        onChange={(e) => setShopifyStore(e.target.value.replace(/\.myshopify\.com.*/, ''))}
-                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="your-store-name"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Just the store name, not the full URL</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Admin API Access Token</label>
-                      <input
-                        type="password"
-                        value={shopifyToken}
-                        onChange={(e) => setShopifyToken(e.target.value)}
-                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="shpat_..."
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Get from Shopify Admin → Settings → Apps and sales channels → Develop apps</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4">
-                    <button
-                      onClick={connectToShopify}
-                      disabled={connecting || !shopifyStore || !shopifyToken}
-                      className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {connecting ? <RefreshCw size={20} className="animate-spin" /> : <ShoppingBag size={20} />}
-                      {connecting ? 'Connecting...' : 'Connect to Shopify'}
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowShopifyPanel(false)}
-                      className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={16} />
-                      <div className="text-sm text-yellow-800">
-                        <p className="font-semibold mb-2">Setup Instructions</p>
-                        <ol className="list-decimal list-inside space-y-1 text-xs">
-                          <li>Go to your Shopify Admin → Settings → Apps and sales channels</li>
-                          <li>Click "Develop apps" → "Create an app"</li>
-                          <li>Name it "Price List Generator"</li>
-                          <li>Click "Configure Admin API scopes"</li>
-                          <li>Enable: <strong>read_products</strong> and <strong>read_collections</strong></li>
-                          <li>Save, then click "Install app"</li>
-                          <li>Copy the "Admin API access token" (starts with shpat_)</li>
-                        </ol>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">
-                        Connected to <strong>{shopifyStore}.myshopify.com</strong>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {shopifyProducts.length} products • {shopifyCollections.length} collections
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={refreshShopifyData}
-                        disabled={loading}
-                        className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                      >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        Refresh
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShopifyConnected(false);
-                          setShopifyProducts([]);
-                          setShopifyCollections([]);
-                          setProductTypes([]);
-                          setVendors([]);
-                          setSelectedProducts([]);
-                        }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="text-2xl font-bold text-blue-600">{shopifyProducts.length}</div>
-                      <div className="text-sm text-gray-600">Products</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="text-2xl font-bold text-green-600">{shopifyCollections.length}</div>
-                      <div className="text-sm text-gray-600">Collections</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="text-2xl font-bold text-purple-600">{productTypes.length}</div>
-                      <div className="text-sm text-gray-600">Product Types</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="text-2xl font-bold text-orange-600">{vendors.length}</div>
-                      <div className="text-sm text-gray-600">Vendors</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Shopify Product Selection */}
-          {shopifyConnected && (
+          {shopInfo && (
             <div className="p-6 lg:p-8 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Select Products from Shopify</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Select Products from Your Store</h3>
               
+              {/* Store Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">{shopifyProducts.length}</div>
+                  <div className="text-sm text-blue-800">Products Available</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">{shopifyCollections.length}</div>
+                  <div className="text-sm text-green-800">Collections</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-600">{productTypes.length}</div>
+                  <div className="text-sm text-purple-800">Product Types</div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                  <div className="text-2xl font-bold text-orange-600">{vendors.length}</div>
+                  <div className="text-sm text-orange-800">Vendors</div>
+                </div>
+              </div>
+
               {/* Filter Controls */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
                 <div>
@@ -945,30 +787,11 @@ const ShopifyPriceListGenerator = () => {
                     className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="all">All Products</option>
-                    <option value="collection">By Collection</option>
                     <option value="type">By Product Type</option>
                     <option value="vendor">By Vendor</option>
                     <option value="custom">Custom Filter</option>
                   </select>
                 </div>
-
-                {filterMode === 'collection' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Collection</label>
-                    <select
-                      value={selectedCollection}
-                      onChange={(e) => setSelectedCollection(e.target.value)}
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Collection</option>
-                      {shopifyCollections.map(collection => (
-                        <option key={collection.id} value={collection.id}>
-                          {collection.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
 
                 {filterMode === 'type' && (
                   <div>
@@ -978,7 +801,7 @@ const ShopifyPriceListGenerator = () => {
                       onChange={(e) => setSelectedType(e.target.value)}
                       className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Select Type</option>
+                      <option value="">All Types</option>
                       {productTypes.map(type => (
                         <option key={type} value={type}>{type}</option>
                       ))}
@@ -994,7 +817,7 @@ const ShopifyPriceListGenerator = () => {
                       onChange={(e) => setSelectedVendor(e.target.value)}
                       className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Select Vendor</option>
+                      <option value="">All Vendors</option>
                       {vendors.map(vendor => (
                         <option key={vendor} value={vendor}>{vendor}</option>
                       ))}
@@ -1004,15 +827,24 @@ const ShopifyPriceListGenerator = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Search Products</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by name, type, vendor..."
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search products..."
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={searchProducts}
+                      disabled={loading}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1027,14 +859,14 @@ const ShopifyPriceListGenerator = () => {
                         type="number"
                         value={priceRange.min}
                         onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
-                        placeholder="Min"
+                        placeholder="Min Price"
                         className="flex-1 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       <input
                         type="number"
                         value={priceRange.max}
                         onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
-                        placeholder="Max"
+                        placeholder="Max Price"
                         className="flex-1 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
@@ -1043,19 +875,21 @@ const ShopifyPriceListGenerator = () => {
               )}
 
               {/* Quick Collection Actions */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                <span className="text-sm font-semibold text-gray-700">Quick Actions:</span>
-                {shopifyCollections.slice(0, 5).map(collection => (
-                  <button
-                    key={collection.id}
-                    onClick={() => addFromCollection(collection.id.toString())}
-                    disabled={loading}
-                    className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition-colors text-sm disabled:opacity-50"
-                  >
-                    Add all "{collection.title}"
-                  </button>
-                ))}
-              </div>
+              {shopifyCollections.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <span className="text-sm font-semibold text-gray-700">Quick Actions:</span>
+                  {shopifyCollections.slice(0, 5).map(collection => (
+                    <button
+                      key={collection.id}
+                      onClick={() => addFromCollection(collection.id.toString())}
+                      disabled={loading}
+                      className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition-colors text-sm disabled:opacity-50"
+                    >
+                      Add all "{collection.title}"
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Selection Controls */}
               <div className="flex flex-wrap gap-4 mb-6">
@@ -1075,19 +909,57 @@ const ShopifyPriceListGenerator = () => {
                 </div>
                 
                 <button
-                  onClick={selectAllFiltered}
+                  onClick={() => {
+                    const filteredProducts = getFilteredShopifyProducts();
+                    const allIds = filteredProducts.map(p => p.id.toString());
+                    setSelectedProducts(allIds);
+                  }}
                   className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-sm"
                 >
                   Select All Filtered ({getFilteredShopifyProducts().length})
                 </button>
                 
                 <button
-                  onClick={clearAllSelections}
+                  onClick={() => setSelectedProducts([])}
                   className="px-3 py-1 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >
                   Clear Selection
                 </button>
+
+                <button
+                  onClick={() => fetchProducts()}
+                  disabled={loading}
+                  className="flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm disabled:opacity-50"
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  Refresh
+                </button>
               </div>
+
+              {/* Pagination Controls */}
+              {(pagination.has_prev || pagination.has_next) && (
+                <div className="flex justify-between items-center mb-6">
+                  <button
+                    onClick={() => fetchProducts(pagination.prev_page_info)}
+                    disabled={!pagination.has_prev || loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous Page
+                  </button>
+                  
+                  <span className="text-sm text-gray-600">
+                    Showing {shopifyProducts.length} products
+                  </span>
+                  
+                  <button
+                    onClick={() => fetchProducts(pagination.next_page_info)}
+                    disabled={!pagination.has_next || loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next Page
+                  </button>
+                </div>
+              )}
 
               {/* Product Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
@@ -1140,10 +1012,29 @@ const ShopifyPriceListGenerator = () => {
                 ))}
               </div>
 
-              {getFilteredShopifyProducts().length === 0 && (
+              {getFilteredShopifyProducts().length === 0 && !loading && (
                 <div className="text-center py-8 text-gray-500">
                   <Package size={48} className="mx-auto mb-4 text-gray-300" />
                   <p>No products found matching your criteria</p>
+                  <button
+                    onClick={() => {
+                      setFilterMode('all');
+                      setSelectedType('');
+                      setSelectedVendor('');
+                      setSearchQuery('');
+                      fetchProducts();
+                    }}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              )}
+
+              {loading && (
+                <div className="text-center py-8">
+                  <Loader2 className="animate-spin mx-auto mb-4" size={48} />
+                  <p className="text-gray-600">Loading products...</p>
                 </div>
               )}
             </div>
@@ -1486,6 +1377,16 @@ const ShopifyPriceListGenerator = () => {
                           <div className="flex items-center gap-2 text-green-800">
                             <ShoppingBag size={16} />
                             <span className="text-sm font-medium">Imported from Shopify</span>
+                            {product.productUrl && (
+                              <a 
+                                href={product.productUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="ml-auto text-green-600 hover:text-green-800"
+                              >
+                                <ExternalLink size={14} />
+                              </a>
+                            )}
                           </div>
                           <p className="text-xs text-green-600 mt-1">
                             Product ID: {product.shopifyData.productId} • Variant ID: {product.shopifyData.variantId}
@@ -1505,27 +1406,24 @@ const ShopifyPriceListGenerator = () => {
                   <Zap size={48} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-xl font-semibold text-gray-700 mb-2">No products yet!</h3>
                   <p className="text-gray-500 mb-6">
-                    {shopifyConnected ? 
+                    {shopInfo ? 
                       'Select products from your Shopify store above, or add products manually.' :
                       'Connect to Shopify to import products, or add products manually.'
                     }
                   </p>
                   <div className="flex gap-4 justify-center">
-                    {shopifyConnected ? (
+                    {shopInfo ? (
                       <button
-                        onClick={() => setShowShopifyPanel(true)}
+                        onClick={() => {
+                          const firstFewProducts = shopifyProducts.slice(0, 5).map(p => p.id.toString());
+                          setSelectedProducts(firstFewProducts);
+                          addSelectedProducts();
+                        }}
                         className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                       >
-                        Select from Shopify
+                        Add First 5 Products
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => setShowShopifyPanel(true)}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                      >
-                        Connect to Shopify
-                      </button>
-                    )}
+                    ) : null}
                     <button
                       onClick={addProduct}
                       className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
