@@ -30,4 +30,4 @@ databases:
     databaseName: price_list_generator
     user: price_list_user
     region: oregon
-    plan: starter
+    plan: free
