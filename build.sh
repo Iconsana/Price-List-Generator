@@ -7,7 +7,11 @@ echo "🚀 Starting Render build process..."
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-npm ci
+if [ -f package-lock.json ]; then
+    npm ci
+else
+    npm install
+fi
 
 # Generate Prisma client
 echo "🔧 Generating Prisma client..."
