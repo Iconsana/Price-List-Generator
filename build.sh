@@ -21,6 +21,10 @@ npx prisma generate
 echo "🏗️ Building application..."
 npm run build
 
+# Run database migrations
+echo "🗄️ Running database migrations..."
+npx prisma migrate deploy
+
 echo "✅ Build process completed successfully!"
 echo "🔍 Verifying build output..."
 ls -la build/
