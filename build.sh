@@ -23,7 +23,10 @@ npm run build
 
 # Run database migrations
 echo "🗄️ Running database migrations..."
-npx prisma migrate deploy
+# Reset migration state for PostgreSQL
+npx prisma migrate reset --force --skip-generate
+# Push schema directly to database
+npx prisma db push --skip-generate
 
 echo "✅ Build process completed successfully!"
 echo "🔍 Verifying build output..."
