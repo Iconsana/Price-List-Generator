@@ -22,11 +22,9 @@ echo "🏗️ Building application..."
 npm run build
 
 # Run database migrations
-echo "🗄️ Running database migrations..."
-# Reset migration state for PostgreSQL
-npx prisma migrate reset --force --skip-generate
-# Push schema directly to database
-npx prisma db push --skip-generate
+echo "🗄️ Setting up database..."
+# For production deployment, use db push to avoid migration conflicts
+npx prisma db push --force-reset --skip-generate
 
 echo "✅ Build process completed successfully!"
 echo "🔍 Verifying build output..."
