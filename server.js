@@ -2,7 +2,6 @@ import express from 'express';
 import { createRequestHandler } from '@remix-run/express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -12,12 +11,13 @@ const app = express();
 // Trust proxy for Render
 app.set('trust proxy', 1);
 
-// Serve static files
-app.use('/build', express.static(join(__dirname, 'build'), {
+// Serve static files from the build/client directory
+app.use('/build', express.static(join(__dirname, 'build', 'client'), {
   maxAge: '1y',
   immutable: true
 }));
 
+// Serve other static files
 app.use(express.static(join(__dirname, 'public'), {
   maxAge: '1h'
 }));
@@ -31,14 +31,37 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Load the build
+// Load the Remix build
 let build;
 try {
-  const buildPath = join(__dirname, 'build', 'index.js');
-  build = await import(buildPath);
+  // Import the server build
+  build = await import('./build/server/index.js');
 } catch (error) {
-  console.error('Failed to load build:', error);
-  process.exit(1);
+  console.error('Failed to load Remix build:', error);
+  
+  // Try alternative path
+  try {
+    build = await import('./build/index.js');
+  } catch (fallbackError) {
+    console.error('Failed to load build from fallback path:', fallbackError);
+    console.error('Available files in build directory:');
+    
+    try {
+      const fs = await import('fs');
+      const buildContents = fs.readdirSync(join(__dirname, 'build'));
+      console.log('Build directory contents:', buildContents);
+      
+      // Check if there's a server directory
+      if (buildContents.includes('server')) {
+        const serverContents = fs.readdirSync(join(__dirname, 'build', 'server'));
+        console.log('Server directory contents:', serverContents);
+      }
+    } catch (fsError) {
+      console.error('Could not read build directory:', fsError);
+    }
+    
+    process.exit(1);
+  }
 }
 
 // Handle all other routes with Remix
