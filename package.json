@@ -10,7 +10,7 @@
     "config:use": "shopify app config use",
     "env": "shopify app env",
    "test-server": "node test-server.js",
-    "start": "npm run setup && remix-serve ./build/server/index.js",
+    "start": "npm run setup && PORT=${PORT:-3000} remix-serve ./build/server/index.js",
     "docker-start": "npm run start",
     "setup": "prisma generate && prisma migrate deploy",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
