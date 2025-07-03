@@ -1,5 +1,5 @@
 client_id = "6b5a565d7969924d403aa57f66a1cfea"
 name = "Price List Generator"
 handle = "price-list-generator-1"
-application_url = "https://price-list-generator-production-2bc2.up.railway.app/"
+application_url = "https://price-list-generator.onrender.com/"
 embedded = true
