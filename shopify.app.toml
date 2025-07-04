@@ -1,6 +1,6 @@
 client_id = "6b5a565d7969924d403aa57f66a1cfea"
 name = "Price List Generator"
-handle = "price-list-generator"
+handle = "price-list-generator-pro"
 application_url = "https://price-list-generator.onrender.com/"
 embedded = true
 
