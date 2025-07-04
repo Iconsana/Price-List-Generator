@@ -3,3 +3,26 @@ name = "Price List Generator"
 handle = "price-list-generator-1"
 application_url = "https://price-list-generator.onrender.com/"
 embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[auth]
+redirect_urls = [
+  "https://price-list-generator.onrender.com/auth/callback",
+  "https://price-list-generator.onrender.com/auth/shopify/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks/app/uninstalled"
+
+[[webhooks.subscriptions]]  
+topics = ["app/scopes_update"]
+uri = "/webhooks/app/scopes_update"
+
+[pos]
+embedded = false
