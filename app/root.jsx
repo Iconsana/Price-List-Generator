@@ -17,6 +17,23 @@ export default function App() {
           rel="stylesheet"
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
+        {/* Add Tailwind CSS CDN */}
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+          {`
+            tailwind.config = {
+              theme: {
+                extend: {
+                  colors: {
+                    primary: '#0066cc',
+                    secondary: '#4f46e5',
+                    accent: '#06b6d4',
+                  }
+                }
+              }
+            }
+          `}
+        </script>
         <Meta />
         <Links />
       </head>
