@@ -4,6 +4,10 @@ handle = "price-list-generator-pro"
 application_url = "https://price-list-generator.onrender.com/"
 embedded = true
 
+# ADD THIS SECTION - This was missing!
+[access_scopes]
+scopes = "read_products,write_products,read_product_feeds,write_product_feeds"
+
 [build]
 include_config_on_deploy = true
 
