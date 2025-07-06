@@ -1,33 +1,15 @@
-client_id = "6b5a565d7969924d403aa57f66a1cfea"
 name = "Price List Generator"
-handle = "price-list-generator-pro"
-application_url = "https://price-list-generator.onrender.com/"
-embedded = true
-
-# ADD THIS SECTION - This was missing!
-[access_scopes]
-scopes = "read_products,write_products"
+client_id = "6b5a565d7969924d403aa57f66a1cfea"
+application_url = "https://price-list-generator.onrender.com"
 
 [build]
-include_config_on_deploy = true
+dev_store_url = "cycle1-test.myshopify.com"
 
 [auth]
-redirect_urls = [
-  "https://price-list-generator.onrender.com/auth/callback",
-  "https://price-list-generator.onrender.com/auth/shopify/callback",
-  "https://price-list-generator.onrender.com/auth/login"
-]
+redirect_urls = ["https://price-list-generator.onrender.com/auth/callback"]
 
 [webhooks]
 api_version = "2025-01"
 
-[[webhooks.subscriptions]]
-topics = ["app/uninstalled"]
-uri = "/webhooks/app/uninstalled"
-
-[[webhooks.subscriptions]]  
-topics = ["app/scopes_update"]
-uri = "/webhooks/app/scopes_update"
-
-[pos]
-embedded = false
+[embedded]
+enabled = true
